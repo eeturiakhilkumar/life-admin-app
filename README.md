@@ -18,12 +18,13 @@ The web app is deployed to Firebase Hosting. Mobile builds are prepared with Exp
 - `supabase`: database migrations, local Supabase config, edge-function scaffolding
 - `.github/workflows`: CI, build, and deployment automation
 - `scripts`: utility scripts including architecture PDF generation
+- `.nvmrc`: recommended local Node version
 
 ## Prerequisites
 
 Install these before working on the project:
 
-- `Node.js` 22.x
+- `Node.js` 24.14.1
 - `pnpm` 9.15.0 via `corepack`
 - `Git`
 - `Firebase CLI`
@@ -45,10 +46,13 @@ Clone the repo and install dependencies:
 
 ```bash
 cd /Users/aeeturi/Documents/Akhil/projects/life_admin_app/life-admin-app
+nvm use
 corepack enable pnpm
 corepack prepare pnpm@9.15.0 --activate
 pnpm install
 ```
+
+If you use `nvm`, the repo includes `.nvmrc` pinned to Node 24.14.1.
 
 If your environment has issues with a custom package mirror, this repo is configured to use the public npm registry through `.npmrc`.
 

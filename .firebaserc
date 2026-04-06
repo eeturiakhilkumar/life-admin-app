@@ -1,21 +1,13 @@
 {
   "projects": {
     "staging": "life-admin-app-16bd7",
-    "life-admin-app-staging": "life-admin-app-16bd7",
-    "life-admin-production": "life-admin-app-16bd7"
+    "life-admin-app-staging": "life-admin-app-16bd7"
   },
   "targets": {
     "life-admin-staging": {
       "hosting": {
         "life-admin-staging": [
           "life-admin-staging"
-        ]
-      }
-    },
-    "life-admin-production": {
-      "hosting": {
-        "life-admin-production": [
-          "life-admin-production"
         ]
       }
     },
