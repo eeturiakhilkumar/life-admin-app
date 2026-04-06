@@ -210,14 +210,14 @@ firebase use --add
 
 ### 3. Configure Hosting Targets
 
-If you want to keep the current staging/production target layout, map the targets to your Firebase Hosting site IDs:
+This repo can use one Firebase Hosting site for both preview and production GitHub Actions deploys. Map the targets to the same Hosting site ID:
 
 ```bash
 firebase target:apply hosting life-admin-staging <your-hosting-site-id>
 firebase target:apply hosting life-admin-production <your-hosting-site-id>
 ```
 
-If you have only one hosting site, you can point both targets at the same site.
+If `life-admin-app-16bd7` is your only Hosting site, you can use that value for both commands.
 
 ### 4. Build The Web App
 
@@ -322,12 +322,10 @@ Current automation includes:
 - Firebase web deployment
 - EAS preview mobile builds
 
-Required GitHub secrets depend on your environment, but typically include:
+Required GitHub secrets depend on your environment, but this repo now expects:
 
-- `FIREBASE_SERVICE_ACCOUNT_STAGING`
-- `FIREBASE_PROJECT_ID_STAGING`
-- `FIREBASE_SERVICE_ACCOUNT_PRODUCTION`
-- `FIREBASE_PROJECT_ID_PRODUCTION`
+- `FIREBASE_SERVICE_ACCOUNT`
+- `FIREBASE_PROJECT_ID`
 - `EXPO_TOKEN`
 
 Add additional secrets for Supabase, OpenAI, Sentry, or store credentials as needed.
@@ -349,6 +347,17 @@ Run:
 firebase target:apply hosting life-admin-staging <your-hosting-site-id>
 firebase target:apply hosting life-admin-production <your-hosting-site-id>
 ```
+
+### Firebase GitHub Deploy Missing Service Account
+
+Add these repository secrets in GitHub Actions:
+
+```bash
+FIREBASE_SERVICE_ACCOUNT
+FIREBASE_PROJECT_ID
+```
+
+`FIREBASE_SERVICE_ACCOUNT` should contain the full Firebase service-account JSON. `FIREBASE_PROJECT_ID` should contain your Firebase project ID, for example `life-admin-app-16bd7`.
 
 ### Expo Web Build Fails On Notifications
 
