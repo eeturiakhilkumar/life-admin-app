@@ -46,6 +46,7 @@ Clone the repo and install dependencies:
 
 ```bash
 cd /Users/aeeturi/Documents/Akhil/projects/life_admin_app/life-admin-app
+nvm install 24.14.1
 nvm use
 corepack enable pnpm
 corepack prepare pnpm@9.15.0 --activate
@@ -55,6 +56,18 @@ pnpm install
 If you use `nvm`, the repo includes `.nvmrc` pinned to Node 24.14.1.
 
 If your environment has issues with a custom package mirror, this repo is configured to use the public npm registry through `.npmrc`.
+
+You can verify your versions with:
+
+```bash
+node -v
+pnpm -v
+```
+
+Expected values:
+
+- `node`: `v24.14.1`
+- `pnpm`: `9.15.0`
 
 ## Environment Variables
 
@@ -223,6 +236,13 @@ firebase target:apply hosting life-admin-production <your-hosting-site-id>
 
 If `life-admin-app-16bd7` is your only Hosting site, you can use that value for both commands.
 
+Example:
+
+```bash
+firebase target:apply hosting life-admin-staging life-admin-app-16bd7
+firebase target:apply hosting life-admin-production life-admin-app-16bd7
+```
+
 ### 4. Build The Web App
 
 ```bash
@@ -311,7 +331,7 @@ Before store submission, make sure these are updated:
 - Privacy policy and legal links
 - Data safety / privacy disclosures
 
-## CI/CD
+## GitHub Actions And CI/CD
 
 GitHub Actions workflow:
 
@@ -323,16 +343,43 @@ Current automation includes:
 - typecheck
 - tests
 - web build
-- Firebase web deployment
+- Firebase preview deploy for pull requests when enabled
+- Firebase production deploy on pushes to `main`
 - EAS preview mobile builds
 
-Required GitHub secrets depend on your environment, but this repo now expects:
+### Required GitHub Secrets
+
+Add these repository secrets in:
+
+`Settings -> Secrets and variables -> Actions -> Secrets`
+
+This repo expects:
 
 - `FIREBASE_SERVICE_ACCOUNT`
 - `FIREBASE_PROJECT_ID`
 - `EXPO_TOKEN`
 
+Secret values:
+
+- `FIREBASE_SERVICE_ACCOUNT`: full Firebase service-account JSON
+- `FIREBASE_PROJECT_ID`: Firebase project ID, for example `life-admin-app-16bd7`
+- `EXPO_TOKEN`: Expo access token for EAS builds
+
 Add additional secrets for Supabase, OpenAI, Sentry, or store credentials as needed.
+
+### Optional Preview Deploy Variable
+
+Firebase preview deploys are disabled by default so pull requests do not fail when secrets are unavailable, especially for forked PRs.
+
+To enable preview deploys, add this repository variable in:
+
+`Settings -> Secrets and variables -> Actions -> Variables`
+
+```bash
+FIREBASE_PREVIEW_ENABLED=true
+```
+
+If this variable is not set to `true`, the preview deploy job will skip.
 
 ## Troubleshooting
 
@@ -361,7 +408,44 @@ FIREBASE_SERVICE_ACCOUNT
 FIREBASE_PROJECT_ID
 ```
 
-`FIREBASE_SERVICE_ACCOUNT` should contain the full Firebase service-account JSON. `FIREBASE_PROJECT_ID` should contain your Firebase project ID, for example `life-admin-app-16bd7`.
+`FIREBASE_SERVICE_ACCOUNT` should contain the full Firebase service-account JSON.
+
+`FIREBASE_PROJECT_ID` should contain your Firebase project ID, for example:
+
+```bash
+life-admin-app-16bd7
+```
+
+Also make sure the preview deploy variable is enabled if you expect preview deploys to run:
+
+```bash
+FIREBASE_PREVIEW_ENABLED=true
+```
+
+### Firebase Preview Deploy Skips
+
+That is expected when:
+
+- `FIREBASE_PREVIEW_ENABLED` is not set to `true`
+- the pull request comes from a fork and secrets are unavailable
+
+This is safer than failing the entire workflow for contributors without access to repository secrets.
+
+### Node Version Mismatch
+
+Run:
+
+```bash
+nvm install 24.14.1
+nvm use
+node -v
+```
+
+Expected:
+
+```bash
+v24.14.1
+```
 
 ### Expo Web Build Fails On Notifications
 
