@@ -1,0 +1,12 @@
+{
+  "name": "@life-admin/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./eslint": "./eslint.base.js",
+    "./prettier": "./prettier.config.cjs",
+    "./vitest": "./vitest.base.ts"
+  }
+}
+
