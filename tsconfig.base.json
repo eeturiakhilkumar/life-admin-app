@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "baseUrl": ".",
+    "paths": {
+      "@life-admin/ui": [
+        "packages/ui/src"
+      ],
+      "@life-admin/domain": [
+        "packages/domain/src"
+      ],
+      "@life-admin/ai": [
+        "packages/ai/src"
+      ],
+      "@life-admin/config/*": [
+        "packages/config/*"
+      ]
+    }
+  }
+}

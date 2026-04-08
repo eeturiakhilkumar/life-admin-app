@@ -1,0 +1,236 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build web
+        run: pnpm build:web
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Test web
+        run: pnpm test:web
+
+  deploy-web-preview:
+    name: deploy-web-preview
+    if: github.event_name == 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+    steps:
+      - name: Check Firebase preview prerequisites
+        id: preview_gate
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ] && [ -n "$FIREBASE_PROJECT_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Firebase preview deploy skipped because FIREBASE_SERVICE_ACCOUNT or FIREBASE_PROJECT_ID is not configured." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Checkout
+        if: steps.preview_gate.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        if: steps.preview_gate.outputs.enabled == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node
+        if: steps.preview_gate.outputs.enabled == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Install dependencies
+        if: steps.preview_gate.outputs.enabled == 'true'
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Build web
+        if: steps.preview_gate.outputs.enabled == 'true'
+        run: pnpm build:web
+
+      - name: Verify Firebase preview secrets
+        if: steps.preview_gate.outputs.enabled == 'true'
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "Missing required GitHub Actions secret: FIREBASE_SERVICE_ACCOUNT" >&2
+            exit 1
+          fi
+          if [ -z "$FIREBASE_PROJECT_ID" ]; then
+            echo "Missing required GitHub Actions secret: FIREBASE_PROJECT_ID" >&2
+            exit 1
+          fi
+
+      - name: Verify Firebase preview target configuration
+        if: steps.preview_gate.outputs.enabled == 'true'
+        run: |
+          if ! grep -q '"target": "life-admin-staging"' firebase.json; then
+            echo 'Missing Firebase Hosting target "life-admin-staging" in firebase.json' >&2
+            exit 1
+          fi
+          if ! grep -q '"life-admin-staging"' .firebaserc; then
+            echo 'Missing Firebase Hosting target mapping for "life-admin-staging" in .firebaserc' >&2
+            exit 1
+          fi
+
+      - name: Deploy to Firebase preview
+        id: firebase_preview
+        if: steps.preview_gate.outputs.enabled == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
+          target: life-admin-staging
+
+      - name: Add preview URL to job summary
+        if: steps.preview_gate.outputs.enabled == 'true' && steps.firebase_preview.outputs.details_url != ''
+        run: |
+          {
+            echo "## Firebase preview"
+            echo
+            echo "Primary preview URL: ${{ steps.firebase_preview.outputs.details_url }}"
+            echo
+            echo "All preview URLs: ${{ steps.firebase_preview.outputs.urls }}"
+            echo
+            echo "The Firebase action also comments on the pull request with the preview link."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-web-production:
+    name: deploy-web-production
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Build web
+        run: pnpm build:web
+
+      - name: Verify Firebase production secrets
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "Missing required GitHub Actions secret: FIREBASE_SERVICE_ACCOUNT" >&2
+            exit 1
+          fi
+          if [ -z "$FIREBASE_PROJECT_ID" ]; then
+            echo "Missing required GitHub Actions secret: FIREBASE_PROJECT_ID" >&2
+            exit 1
+          fi
+
+      - name: Verify Firebase production target configuration
+        run: |
+          if ! grep -q '"target": "life-admin-production"' firebase.json; then
+            echo 'Missing Firebase Hosting target "life-admin-production" in firebase.json' >&2
+            exit 1
+          fi
+          if ! grep -q '"life-admin-production"' .firebaserc; then
+            echo 'Missing Firebase Hosting target mapping for "life-admin-production" in .firebaserc' >&2
+            exit 1
+          fi
+
+      - name: Deploy to Firebase production
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
+          target: life-admin-production
+          channelId: live
+
+  build-mobile:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build iOS preview
+        run: eas build --platform ios --profile preview --non-interactive
+
+      - name: Build Android preview
+        run: eas build --platform android --profile preview --non-interactive

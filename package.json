@@ -1,0 +1,33 @@
+{
+  "name": "life-admin-app",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "dev:app": "turbo run dev --filter=app",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:web": "playwright test",
+    "test:mobile": "detox test -c ios.sim.debug",
+    "build": "turbo run build",
+    "build:web": "turbo run build:web --filter=app",
+    "pdf:architecture": "python3 scripts/generate_architecture_pdf.py ../docs/life-admin-architecture.md ../docs/life-admin-architecture.pdf"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.53.0",
+    "@typescript-eslint/parser": "^8.46.1",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "detox": "^20.25.0",
+    "eslint": "^9.28.0",
+    "prettier": "^3.5.3",
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
