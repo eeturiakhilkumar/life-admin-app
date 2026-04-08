@@ -24,7 +24,7 @@ The web app is deployed to Firebase Hosting. Mobile builds are prepared with Exp
 
 Install these before working on the project:
 
-- `Node.js` 24.14.1
+- `Node.js` 22.x
 - `pnpm` 9.15.0 via `corepack`
 - `Git`
 - `Firebase CLI`
@@ -46,14 +46,14 @@ Clone the repo and install dependencies:
 
 ```bash
 cd /Users/aeeturi/Documents/Akhil/projects/life_admin_app/life-admin-app
-nvm install 24.14.1
+nvm install 22
 nvm use
 corepack enable pnpm
 corepack prepare pnpm@9.15.0 --activate
 pnpm install
 ```
 
-If you use `nvm`, the repo includes `.nvmrc` pinned to Node 24.14.1.
+If you use `nvm`, the repo includes `.nvmrc` pinned to Node 22.
 
 If your environment has issues with a custom package mirror, this repo is configured to use the public npm registry through `.npmrc`.
 
@@ -66,7 +66,7 @@ pnpm -v
 
 Expected values:
 
-- `node`: `v24.14.1`
+- `node`: `v22.x`
 - `pnpm`: `9.15.0`
 
 ## Environment Variables
@@ -158,6 +158,7 @@ From the repo root:
 ```bash
 pnpm dev
 pnpm dev:app
+pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
@@ -166,6 +167,20 @@ pnpm pdf:architecture
 ```
 
 ## Testing
+
+### CI Validation Order
+
+The `validate` job runs these checks in order:
+
+```bash
+pnpm install --frozen-lockfile=false
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build:web
+pnpm exec playwright install --with-deps chromium
+pnpm test:web
+```
 
 ### Typecheck
 
@@ -182,10 +197,11 @@ pnpm test
 ### Web End-To-End Tests
 
 ```bash
+pnpm build:web
 pnpm test:web
 ```
 
-This uses Playwright.
+This uses Playwright and serves `apps/app/dist` on `http://127.0.0.1:8081` during the test run.
 
 ### Mobile Smoke Tests
 
@@ -227,7 +243,12 @@ firebase use --add
 
 ### 3. Configure Hosting Targets
 
-This repo can use one Firebase Hosting site for both preview and production GitHub Actions deploys. Map the targets to the same Hosting site ID:
+This repo uses two Firebase Hosting targets:
+
+- `life-admin-staging` for pull request preview channels
+- `life-admin-production` for the live deployment from `main`
+
+You can map both targets to the same Hosting site ID if you only maintain one Firebase Hosting site:
 
 ```bash
 firebase target:apply hosting life-admin-staging <your-hosting-site-id>
@@ -340,10 +361,11 @@ GitHub Actions workflow:
 Current automation includes:
 
 - dependency install
+- lint
 - typecheck
 - tests
 - web build
-- Firebase preview deploy for pull requests when enabled
+- Firebase preview deploy job for pull requests to `main`, with deployment only when Firebase secrets are configured
 - Firebase production deploy on pushes to `main`
 - EAS preview mobile builds
 
@@ -367,19 +389,14 @@ Secret values:
 
 Add additional secrets for Supabase, OpenAI, Sentry, or store credentials as needed.
 
-### Optional Preview Deploy Variable
+### Required Branch Protection
 
-Firebase preview deploys are disabled by default so pull requests do not fail when secrets are unavailable, especially for forked PRs.
+To make preview URLs part of PR validation on `main`, require these checks in your branch protection rule:
 
-To enable preview deploys, add this repository variable in:
+- `validate`
+- `deploy-web-preview`
 
-`Settings -> Secrets and variables -> Actions -> Variables`
-
-```bash
-FIREBASE_PREVIEW_ENABLED=true
-```
-
-If this variable is not set to `true`, the preview deploy job will skip.
+The Firebase Hosting action comments on the pull request with the preview URL and the workflow also writes the URL into the Actions job summary.
 
 ## Troubleshooting
 
@@ -416,27 +433,18 @@ FIREBASE_PROJECT_ID
 life-admin-app-16bd7
 ```
 
-Also make sure the preview deploy variable is enabled if you expect preview deploys to run:
+These secrets must be present for the preview deployment steps to run.
 
-```bash
-FIREBASE_PREVIEW_ENABLED=true
-```
+### Firebase Preview Deploy Does Not Run
 
-### Firebase Preview Deploy Skips
-
-That is expected when:
-
-- `FIREBASE_PREVIEW_ENABLED` is not set to `true`
-- the pull request comes from a fork and secrets are unavailable
-
-This is safer than failing the entire workflow for contributors without access to repository secrets.
+That is expected when the workflow is not running on a pull request or when either `FIREBASE_SERVICE_ACCOUNT` or `FIREBASE_PROJECT_ID` is missing. Forked pull requests also skip preview deploys because those secrets are not exposed there.
 
 ### Node Version Mismatch
 
 Run:
 
 ```bash
-nvm install 24.14.1
+nvm install 22
 nvm use
 node -v
 ```
@@ -444,7 +452,7 @@ node -v
 Expected:
 
 ```bash
-v24.14.1
+v22.20.0
 ```
 
 ### Expo Web Build Fails On Notifications
