@@ -14,8 +14,10 @@ import {
   signOut as firebaseSignOut,
   updateProfile
 } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 
-import { firebaseAuth } from "../lib/firebase";
+import { firebaseAuth, firebaseDb } from "../lib/firebase";
+import { getServerTimestamp, getNativeAuth, getNativeFirestore } from "../lib/firebase-platform";
 
 type AuthContextValue = {
   isConfigured: boolean;
@@ -85,6 +87,36 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     };
   }, []);
 
+  const saveUserProfile = async (
+    currentUser: User | null,
+    additionalData: { displayName?: string } = {},
+    isNewUser = false
+  ) => {
+    if (!currentUser) return;
+
+    const profileData: Record<string, unknown> = {
+      uid: currentUser.uid,
+      email: currentUser.email,
+      phoneNumber: currentUser.phoneNumber,
+      displayName: additionalData.displayName || currentUser.displayName,
+      updatedAt: getServerTimestamp()
+    };
+
+    if (isNewUser) {
+      profileData.createdAt = getServerTimestamp();
+    }
+
+    if (Platform.OS === "web") {
+      if (!firebaseDb) return;
+      await setDoc(doc(firebaseDb, "users", currentUser.uid), profileData, { merge: true });
+    } else {
+      const nativeFirestore = getNativeFirestore();
+      if (nativeFirestore) {
+        await nativeFirestore().collection("users").doc(currentUser.uid).set(profileData, { merge: true });
+      }
+    }
+  };
+
   const value = useMemo<AuthContextValue>(
     () => ({
       isConfigured: Boolean(firebaseAuth),
@@ -92,25 +124,29 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       session: user,
       user,
       async requestOtp(phone) {
-        if (!firebaseAuth) {
-          throw new Error("Firebase phone auth is not configured for this application yet.");
-        }
+        if (Platform.OS === "web") {
+          if (!firebaseAuth) {
+            throw new Error("Firebase phone auth is not configured for this application yet.");
+          }
 
-        if (Platform.OS !== "web") {
-          throw new Error("Realtime Firebase phone authentication is currently configured for the web app.");
-        }
-
-        resetAuthFlow();
-
-        verifierRef.current = new RecaptchaVerifier(firebaseAuth, "firebase-recaptcha-container", {
-          size: "invisible"
-        });
-
-        try {
-          confirmationResultRef.current = await signInWithPhoneNumber(firebaseAuth, phone, verifierRef.current);
-        } catch (error) {
           resetAuthFlow();
-          throw error;
+
+          verifierRef.current = new RecaptchaVerifier(firebaseAuth, "firebase-recaptcha-container", {
+            size: "invisible"
+          });
+
+          try {
+            confirmationResultRef.current = await signInWithPhoneNumber(firebaseAuth, phone, verifierRef.current);
+          } catch (error) {
+            resetAuthFlow();
+            throw error;
+          }
+        } else {
+          const nativeAuth = getNativeAuth();
+          if (nativeAuth) {
+            const confirmation = await nativeAuth().signInWithPhoneNumber(phone);
+            confirmationResultRef.current = confirmation as unknown as ConfirmationResult;
+          }
         }
       },
       async verifyOtp({ token }) {
@@ -118,36 +154,79 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           throw new Error("Request an OTP first.");
         }
 
-        await confirmationResultRef.current.confirm(token);
+        const result = await confirmationResultRef.current.confirm(token);
         resetAuthFlow();
+
+        if (result?.user) {
+          // Check if it's likely a new user (no displayName)
+          const isNewUser = !result.user.displayName;
+          await saveUserProfile(result.user as unknown as User, {}, isNewUser);
+        }
       },
       async signInWithEmail(email, password) {
-        if (!firebaseAuth) {
-          throw new Error("Firebase auth is not configured.");
+        if (Platform.OS === "web") {
+          if (!firebaseAuth) {
+            throw new Error("Firebase auth is not configured.");
+          }
+          await signInWithEmailAndPassword(firebaseAuth, email, password);
+        } else {
+          const nativeAuth = getNativeAuth();
+          if (nativeAuth) {
+            await nativeAuth().signInWithEmailAndPassword(email, password);
+          }
         }
-        await signInWithEmailAndPassword(firebaseAuth, email, password);
       },
       async signUpWithEmail(email, password) {
-        if (!firebaseAuth) {
-          throw new Error("Firebase auth is not configured.");
+        let newUser: User;
+        if (Platform.OS === "web") {
+          if (!firebaseAuth) {
+            throw new Error("Firebase auth is not configured.");
+          }
+          const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+          newUser = credential.user;
+        } else {
+          const nativeAuth = getNativeAuth();
+          if (!nativeAuth) throw new Error("Native Auth not available");
+          const credential = await nativeAuth().createUserWithEmailAndPassword(email, password);
+          newUser = credential.user as unknown as User;
         }
-        await createUserWithEmailAndPassword(firebaseAuth, email, password);
+        await saveUserProfile(newUser, {}, true);
       },
       async updateDisplayName(displayName) {
-        if (!firebaseAuth || !firebaseAuth.currentUser) {
-          throw new Error("No authenticated user found.");
+        if (Platform.OS === "web") {
+          if (!firebaseAuth || !firebaseAuth.currentUser) {
+            throw new Error("No authenticated user found.");
+          }
+          await updateProfile(firebaseAuth.currentUser, { displayName });
+          // Refresh user state
+          setUser({ ...firebaseAuth.currentUser });
+          await saveUserProfile(firebaseAuth.currentUser, { displayName });
+        } else {
+          const nativeAuth = getNativeAuth();
+          if (!nativeAuth) throw new Error("Native Auth not available");
+          const currentUser = nativeAuth().currentUser;
+          if (!currentUser) {
+            throw new Error("No authenticated user found.");
+          }
+          await currentUser.updateProfile({ displayName });
+          // Refresh user state
+          setUser(nativeAuth().currentUser as unknown as User);
+          await saveUserProfile(nativeAuth().currentUser as unknown as User, { displayName });
         }
-        await updateProfile(firebaseAuth.currentUser, { displayName });
-        // Refresh user state
-        setUser({ ...firebaseAuth.currentUser });
       },
       resetAuthFlow,
       async signOut() {
-        if (!firebaseAuth) {
-          return;
+        if (Platform.OS === "web") {
+          if (!firebaseAuth) {
+            return;
+          }
+          await firebaseSignOut(firebaseAuth);
+        } else {
+          const nativeAuth = getNativeAuth();
+          if (nativeAuth) {
+            await nativeAuth().signOut();
+          }
         }
-
-        await firebaseSignOut(firebaseAuth);
       }
     }),
     [isInitializing, user]

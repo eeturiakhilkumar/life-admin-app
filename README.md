@@ -468,4 +468,58 @@ On restricted environments, port binding may require elevated permissions. If Ex
 - Web: Firebase Hosting
 - iOS: EAS Build -> TestFlight -> App Store
 - Android: EAS Build -> Internal testing -> Play Store
-- Backend: Supabase Auth, Postgres, Storage, Edge Functions
+- Backend: Firebase Auth, Cloud Firestore, Supabase Postgres, Storage, Edge Functions
+
+## User Profile Storage (Firestore)
+
+User profile data is automatically saved to Cloud Firestore in the `users` collection. Each document's ID corresponds to the user's Firebase UID.
+
+**Document Fields:**
+- `uid`: The user's unique Firebase ID.
+- `email`: The user's email address (if available).
+- `phoneNumber`: The user's phone number (if available).
+- `displayName`: The user's display name, captured during profile completion.
+- `createdAt`: Timestamp when the user profile was first created.
+- `updatedAt`: Timestamp when the user profile was last updated.
+
+**Firestore Security Rules:**
+To protect user data, ensure your Firestore security rules are configured to allow users to only access their own profile:
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
+
+## Mobile Development Setup
+
+Since the project uses **React Native Firebase** (the native SDK), you must use **Development Builds** (`expo-dev-client`) instead of the standard Expo Go app.
+
+### 1. Firebase Configuration Files
+Ensure you have the following files in `apps/app/`:
+- `google-services.json` (Android)
+- `GoogleService-Info.plist` (iOS)
+
+These files are essential for native Firebase modules to initialize.
+
+### 2. Generating Development Builds
+To test features like Phone OTP on native devices, you need to build a custom development client:
+
+```bash
+# Android
+pnpm exec eas build --platform android --profile development
+
+# iOS (Requires Apple Developer Membership)
+pnpm exec eas build --platform ios --profile development
+```
+
+### 3. Running with Dev Client
+Once the build is installed on your device or emulator:
+```bash
+cd apps/app
+pnpm exec expo start --dev-client
+```

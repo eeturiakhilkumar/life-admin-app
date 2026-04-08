@@ -61,6 +61,7 @@ const config: ExpoConfig = {
     bundleIdentifier: "com.lifeadmin.app",
     supportsTablet: true,
     usesAppleSignIn: true,
+    googleServicesFile: "./GoogleService-Info.plist",
     infoPlist: {
       NSCameraUsageDescription: "Life Admin uses the camera so you can scan bills, renewals, and documents.",
       NSPhotoLibraryUsageDescription: "Life Admin uses your photo library to attach documents and receipts.",
@@ -69,6 +70,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: "com.lifeadmin.app",
+    googleServicesFile: "./google-services.json",
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#f5f0e8"
@@ -83,7 +85,9 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     "expo-notifications",
-    "expo-secure-store"
+    "expo-secure-store",
+    "@react-native-firebase/app",
+    "@react-native-firebase/auth"
   ],
   extra: {
     appEnv,
