@@ -5,11 +5,14 @@ import type { ConfirmationResult, User } from "firebase/auth";
 import {
   RecaptchaVerifier,
   browserLocalPersistence,
+  createUserWithEmailAndPassword,
   indexedDBLocalPersistence,
   onAuthStateChanged,
   setPersistence,
+  signInWithEmailAndPassword,
   signInWithPhoneNumber,
-  signOut as firebaseSignOut
+  signOut as firebaseSignOut,
+  updateProfile
 } from "firebase/auth";
 
 import { firebaseAuth } from "../lib/firebase";
@@ -21,6 +24,9 @@ type AuthContextValue = {
   user: User | null;
   requestOtp: (phone: string) => Promise<void>;
   verifyOtp: (params: { phone: string; token: string }) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  updateDisplayName: (displayName: string) => Promise<void>;
   resetAuthFlow: () => void;
   signOut: () => Promise<void>;
 };
@@ -114,6 +120,26 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
         await confirmationResultRef.current.confirm(token);
         resetAuthFlow();
+      },
+      async signInWithEmail(email, password) {
+        if (!firebaseAuth) {
+          throw new Error("Firebase auth is not configured.");
+        }
+        await signInWithEmailAndPassword(firebaseAuth, email, password);
+      },
+      async signUpWithEmail(email, password) {
+        if (!firebaseAuth) {
+          throw new Error("Firebase auth is not configured.");
+        }
+        await createUserWithEmailAndPassword(firebaseAuth, email, password);
+      },
+      async updateDisplayName(displayName) {
+        if (!firebaseAuth || !firebaseAuth.currentUser) {
+          throw new Error("No authenticated user found.");
+        }
+        await updateProfile(firebaseAuth.currentUser, { displayName });
+        // Refresh user state
+        setUser({ ...firebaseAuth.currentUser });
       },
       resetAuthFlow,
       async signOut() {
