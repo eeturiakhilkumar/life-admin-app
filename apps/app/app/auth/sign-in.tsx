@@ -1,43 +1,88 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Redirect } from "expo-router";
-import { Modal, Platform, Text, TextInput, View } from "react-native";
+import { Modal, Platform, Text, TextInput, View, TouchableOpacity } from "react-native";
 
-import { Card, colors, Section, spacing, StatChip } from "@life-admin/ui";
+import { Card, colors, spacing, radii } from "@life-admin/ui";
 import { AuthActionButton } from "../../src/components/auth-action-button";
 import { Screen } from "../../src/components/screen";
 import { buildPhoneNumberFromInput, sanitizeOtpToken } from "../../src/lib/auth-utils";
-import { useResponsiveLayout } from "../../src/lib/layout";
 import { useAuth } from "../../src/providers/auth-provider";
 
+type AuthTab = "mobile" | "email";
+type AuthMode = "signIn" | "signUp";
+
 export default function SignInScreen() {
-  const { isTablet } = useResponsiveLayout();
-  const { isConfigured, isInitializing, requestOtp, resetAuthFlow, session, verifyOtp } = useAuth();
+  const {
+    isConfigured,
+    isInitializing,
+    requestOtp,
+    resetAuthFlow,
+    session,
+    verifyOtp,
+    signInWithEmail,
+    signUpWithEmail,
+    updateDisplayName
+  } = useAuth();
+
+  const [activeTab, setActiveTab] = useState<AuthTab>("mobile");
+  const [authMode, setAuthMode] = useState<AuthMode>("signIn");
+
+  // Mobile Auth State
   const [mobileNumber, setMobileNumber] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [otpTarget, setOtpTarget] = useState<string | null>(null);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
+  // Email Auth State
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isProcessingEmail, setIsProcessingEmail] = useState(false);
+
+  // Profile Completion State
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [userName, setUserName] = useState("");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
-  if (!isInitializing && session) {
+  // Clear messages when tab or mode changes
+  useEffect(() => {
+    setErrorMessage(null);
+    setInfoMessage(null);
+  }, [activeTab, authMode]);
+
+  // Handle profile completion modal trigger
+  useEffect(() => {
+    if (!isInitializing && session && !session.displayName && authMode === "signUp") {
+      setShowProfileModal(true);
+    }
+  }, [isInitializing, session, authMode]);
+
+  if (!isInitializing && session && (session.displayName || authMode === "signIn") && !showProfileModal) {
     return <Redirect href="/dashboard" />;
   }
 
   const phoneDraft = buildPhoneNumberFromInput(mobileNumber, {
     defaultCountryCode: "+91"
   });
-  const shouldShowPhoneValidation = mobileNumber.trim().length > 0;
-  const phoneValidationMessage = shouldShowPhoneValidation ? phoneDraft.error : null;
   const canRequestOtp = isConfigured && !isSendingOtp && Boolean(phoneDraft.phone);
-  const phoneFieldBorderColor = phoneValidationMessage ? colors.accent : colors.mist;
+
+  const handleMobileNumberChange = (value: string) => {
+    setMobileNumber(value);
+    setErrorMessage(null);
+    if (otpTarget || otpCode) {
+      setOtpCode("");
+      setOtpTarget(null);
+    }
+    resetAuthFlow();
+  };
 
   const sendOtp = async () => {
     const { phone, error } = phoneDraft;
-
     if (!phone || error) {
       setErrorMessage(error);
-      setInfoMessage(null);
       return;
     }
 
@@ -47,25 +92,18 @@ export default function SignInScreen() {
     try {
       await requestOtp(phone);
       setOtpTarget(phone);
-      setInfoMessage(`OTP sent to ${phone}. Enter the 6-digit code to unlock your Life Admin workspace.`);
+      setInfoMessage(`OTP sent to ${phone}`);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "We could not send the OTP right now.");
-      setInfoMessage(null);
+      setErrorMessage(error instanceof Error ? error.message : "Could not send OTP.");
     } finally {
       setIsSendingOtp(false);
     }
   };
 
   const verifyCode = async () => {
-    if (!otpTarget) {
-      setErrorMessage("Request an OTP before verifying the code.");
-      setInfoMessage(null);
-      return;
-    }
-
+    if (!otpTarget) return;
     if (sanitizeOtpToken(otpCode).length !== 6) {
-      setErrorMessage("Enter the 6-digit OTP sent to your mobile number.");
-      setInfoMessage(null);
+      setErrorMessage("Enter the 6-digit OTP.");
       return;
     }
 
@@ -77,147 +115,185 @@ export default function SignInScreen() {
         phone: otpTarget,
         token: sanitizeOtpToken(otpCode)
       });
-      setInfoMessage("OTP verified. Redirecting to your dashboard...");
+      // Clear OTP target on success to close modal
+      setOtpTarget(null);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "We could not verify that OTP.");
-      setInfoMessage(null);
+      setErrorMessage(error instanceof Error ? error.message : "Could not verify OTP.");
     } finally {
       setIsVerifyingOtp(false);
     }
   };
 
-  const closeOtpModal = () => {
-    setOtpCode("");
-    setOtpTarget(null);
-    resetAuthFlow();
-  };
-
-  const handleMobileNumberChange = (value: string) => {
-    setMobileNumber(value);
-    setErrorMessage(null);
-    setInfoMessage(null);
-
-    if (otpTarget || otpCode) {
-      setOtpCode("");
-      setOtpTarget(null);
+  const handleEmailAuth = async () => {
+    if (!email || !password) {
+      setErrorMessage("Please enter both email and password.");
+      return;
+    }
+    if (password.length < 6) {
+      setErrorMessage("Password must be at least 6 characters.");
+      return;
     }
 
-    resetAuthFlow();
+    setIsProcessingEmail(true);
+    setErrorMessage(null);
+
+    try {
+      if (authMode === "signIn") {
+        await signInWithEmail(email, password);
+      } else {
+        await signUpWithEmail(email, password);
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Authentication failed.");
+    } finally {
+      setIsProcessingEmail(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!userName.trim()) {
+      setErrorMessage("Please enter your name.");
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      await updateDisplayName(userName);
+      setShowProfileModal(false);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Could not save profile.");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const inputStyle = {
+    borderWidth: 1,
+    borderColor: colors.mist,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    backgroundColor: "#ffffff",
+    color: colors.ink,
+    fontSize: 16,
+  };
+
+  const labelStyle = {
+    color: colors.ink,
+    fontWeight: "600" as const,
+    marginBottom: spacing.xs,
   };
 
   return (
-    <>
-      <Screen
-        title="Secure mobile OTP sign-in"
-        subtitle="Your Life Admin dashboard stays private until a verified mobile session is active. Sign in once, then manage bills, appointments, renewals, shopping lists, documents, and the rest of your daily operations in one place."
-        rightRail={
-          <View style={{ flexDirection: isTablet ? "column" : "row", flexWrap: "wrap", gap: spacing.sm }}>
-            <StatChip label="Auth" value="Phone + OTP" />
-            <StatChip label="Session" value="Firebase" />
-          </View>
-        }
-      >
-        <Card style={{ gap: spacing.md }}>
-          <Section
-            eyebrow="Sign in"
-            title="Enter your mobile number"
-            description="Use one mobile-number field, request the OTP, then verify it in the popup before entering the application."
-          />
-
-          {!isConfigured ? (
-            <View
+    <Screen title={authMode === "signIn" ? "Welcome back" : "Create account"}>
+      <Card style={{ padding: 0, overflow: "hidden" }}>
+        {/* Tabs */}
+        <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.mist }}>
+          {(["mobile", "email"] as AuthTab[]).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
               style={{
-                borderRadius: 18,
-                borderWidth: 1,
-                borderColor: "#f0c36d",
-                backgroundColor: "#fff6df",
-                padding: spacing.md,
-              gap: spacing.xs
-            }}
-          >
-              <Text style={{ color: colors.ink, fontWeight: "700" }}>Firebase phone auth still needs setup</Text>
-              <Text style={{ color: colors.slate, lineHeight: 22 }}>
-                This app needs its Firebase config, an authorized domain, and Firebase Phone sign-in enabled before OTP login can work.
+                flex: 1,
+                paddingVertical: spacing.md,
+                alignItems: "center",
+                borderBottomWidth: activeTab === tab ? 2 : 0,
+                borderBottomColor: colors.accent,
+              }}
+            >
+              <Text style={{
+                color: activeTab === tab ? colors.accent : colors.slate,
+                fontWeight: "600",
+                textTransform: "capitalize"
+              }}>
+                {tab}
               </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={{ padding: spacing.lg, gap: spacing.lg }}>
+          {activeTab === "mobile" ? (
+            <View style={{ gap: spacing.md }}>
+              <View>
+                <Text style={labelStyle}>Mobile Number</Text>
+                <TextInput
+                  value={mobileNumber}
+                  onChangeText={handleMobileNumberChange}
+                  placeholder="e.g. 9876543210"
+                  placeholderTextColor={colors.slate}
+                  keyboardType="phone-pad"
+                  autoCapitalize="none"
+                  style={inputStyle}
+                />
+              </View>
+              {Platform.OS === "web" ? <View nativeID="firebase-recaptcha-container" style={{ width: 1, height: 1 }} /> : null}
+              <AuthActionButton
+                disabled={!canRequestOtp}
+                label={isSendingOtp ? "Sending..." : "Send OTP"}
+                onPress={() => void sendOtp()}
+                variant="primary"
+              />
             </View>
+          ) : (
+            <View style={{ gap: spacing.md }}>
+              <View>
+                <Text style={labelStyle}>Email Address</Text>
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="you@example.com"
+                  placeholderTextColor={colors.slate}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  style={inputStyle}
+                />
+              </View>
+              <View>
+                <Text style={labelStyle}>Password</Text>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Min. 6 characters"
+                  placeholderTextColor={colors.slate}
+                  secureTextEntry
+                  style={inputStyle}
+                />
+              </View>
+              <AuthActionButton
+                disabled={isProcessingEmail}
+                label={isProcessingEmail ? "Processing..." : (authMode === "signIn" ? "Sign In" : "Create Account")}
+                onPress={() => void handleEmailAuth()}
+                variant="primary"
+              />
+            </View>
+          )}
+
+          {errorMessage ? (
+            <Text style={{ color: colors.accent, textAlign: "center" }}>{errorMessage}</Text>
+          ) : infoMessage ? (
+            <Text style={{ color: colors.slate, textAlign: "center" }}>{infoMessage}</Text>
           ) : null}
 
-          <View style={{ gap: spacing.xs }}>
-            <Text style={{ color: colors.ink, fontWeight: "700" }}>Mobile number</Text>
-            <TextInput
-              value={mobileNumber}
-              onChangeText={handleMobileNumberChange}
-              placeholder="Enter your mobile number"
-              placeholderTextColor={colors.slate}
-              keyboardType="phone-pad"
-              autoCapitalize="none"
-              style={{
-                borderWidth: 1,
-                borderColor: phoneFieldBorderColor,
-                borderRadius: 18,
-                padding: spacing.md,
-                backgroundColor: "#ffffff"
-              }}
-            />
-            <Text style={{ color: colors.slate, lineHeight: 22 }}>
-              Example: 9876543210. For other countries, include the country code, like +14155552671.
-            </Text>
-            {phoneValidationMessage ? (
-              <View
-                style={{
-                  borderRadius: 14,
-                  borderWidth: 1,
-                  borderColor: "#f2b6ae",
-                  backgroundColor: colors.accentSoft,
-                  paddingHorizontal: spacing.md,
-                  paddingVertical: spacing.sm
-                }}
-              >
-                <Text style={{ color: colors.accent, fontWeight: "700", marginBottom: 2 }}>Please check your number</Text>
-                <Text style={{ color: colors.accent, lineHeight: 22 }}>{phoneValidationMessage}</Text>
-              </View>
-            ) : shouldShowPhoneValidation ? (
-              <Text style={{ color: "#1d6f42", lineHeight: 22 }}>
-                Number looks good. You can send the OTP now.
+          <TouchableOpacity
+            onPress={() => setAuthMode(authMode === "signIn" ? "signUp" : "signIn")}
+            style={{ alignItems: "center" }}
+          >
+            <Text style={{ color: colors.slate }}>
+              {authMode === "signIn" ? "Don't have an account? " : "Already have an account? "}
+              <Text style={{ color: colors.accent, fontWeight: "600" }}>
+                {authMode === "signIn" ? "Sign Up" : "Sign In"}
               </Text>
-            ) : null}
-            {Platform.OS === "web" ? <View nativeID="firebase-recaptcha-container" style={{ width: 1, height: 1 }} /> : null}
-          </View>
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Card>
 
-          <AuthActionButton
-            disabled={!canRequestOtp}
-            label={isSendingOtp ? "Sending OTP..." : "Send OTP"}
-            onPress={() => void sendOtp()}
-            variant="primary"
-          />
-
-          {infoMessage ? <Text style={{ color: colors.slate, lineHeight: 22 }}>{infoMessage}</Text> : null}
-          {errorMessage ? <Text style={{ color: colors.accent, lineHeight: 22 }}>{errorMessage}</Text> : null}
-
-          <Section
-            eyebrow="Why sign in"
-            title="One trusted workspace for life admin"
-            description="Once authenticated, the app becomes your private operations dashboard for bills, appointments, renewals, important dates, shopping lists, documents, and future travel ticket workflows."
-          />
-        </Card>
-      </Screen>
-
-      <Modal animationType="fade" transparent visible={Boolean(otpTarget)} onRequestClose={closeOtpModal}>
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(20, 33, 61, 0.35)",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: spacing.md
-          }}
-        >
-          <Card style={{ width: "100%", maxWidth: 440, gap: spacing.md }}>
-            <Section
-              eyebrow="Verify OTP"
-              title="Enter the 6-digit code"
-              description={`We sent an OTP to ${otpTarget}. Verify it to unlock your dashboard.`}
-            />
+      {/* OTP Modal */}
+      <Modal animationType="slide" transparent visible={Boolean(otpTarget)} onRequestClose={() => setOtpTarget(null)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing.md }}>
+          <Card style={{ gap: spacing.md }}>
+            <Text style={{ fontSize: 20, fontWeight: "700", color: colors.ink }}>Verify OTP</Text>
+            <Text style={{ color: colors.slate }}>Enter the 6-digit code sent to {otpTarget}</Text>
 
             <TextInput
               value={otpCode}
@@ -225,37 +301,55 @@ export default function SignInScreen() {
               placeholder="123456"
               keyboardType="number-pad"
               maxLength={6}
-              autoCapitalize="none"
-              style={{
-                borderWidth: 1,
-                borderColor: colors.mist,
-                borderRadius: 18,
-                padding: spacing.md,
-                backgroundColor: "#ffffff",
-                letterSpacing: 4
-              }}
+              style={{ ...inputStyle, letterSpacing: 8, textAlign: "center", fontSize: 24 }}
             />
 
-            <View style={{ flexDirection: isTablet ? "row" : "column", gap: spacing.sm }}>
+            <View style={{ gap: spacing.sm }}>
               <AuthActionButton
                 disabled={isVerifyingOtp}
                 label={isVerifyingOtp ? "Verifying..." : "Verify OTP"}
                 onPress={() => void verifyCode()}
                 variant="primary"
               />
-
               <AuthActionButton
-                disabled={!isConfigured || isSendingOtp}
-                label="Resend code"
-                onPress={() => void sendOtp()}
-                variant="secondary"
+                label="Cancel"
+                onPress={() => setOtpTarget(null)}
+                variant="ghost"
               />
-
-              <AuthActionButton label="Change number" onPress={closeOtpModal} variant="ghost" />
             </View>
           </Card>
         </View>
       </Modal>
-    </>
+
+      {/* Profile Completion Modal */}
+      <Modal animationType="fade" transparent visible={showProfileModal}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing.md }}>
+          <Card style={{ gap: spacing.md }}>
+            <Text style={{ fontSize: 20, fontWeight: "700", color: colors.ink }}>Complete your profile</Text>
+            <Text style={{ color: colors.slate }}>Please enter your name to continue.</Text>
+
+            <View>
+              <Text style={labelStyle}>Your Name</Text>
+              <TextInput
+                value={userName}
+                onChangeText={setUserName}
+                placeholder="John Doe"
+                placeholderTextColor={colors.slate}
+                style={inputStyle}
+              />
+            </View>
+
+            <AuthActionButton
+              disabled={isSavingProfile}
+              label={isSavingProfile ? "Saving..." : "Continue"}
+              onPress={() => void handleSaveProfile()}
+              variant="primary"
+            />
+
+            {errorMessage && <Text style={{ color: colors.accent, textAlign: "center" }}>{errorMessage}</Text>}
+          </Card>
+        </View>
+      </Modal>
+    </Screen>
   );
 }
