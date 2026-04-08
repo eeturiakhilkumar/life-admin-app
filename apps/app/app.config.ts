@@ -87,8 +87,7 @@ const config: ExpoConfig = {
     "expo-notifications",
     "expo-secure-store",
     "@react-native-firebase/app",
-    "@react-native-firebase/auth",
-    "@react-native-firebase/firestore"
+    "@react-native-firebase/auth"
   ],
   extra: {
     appEnv,

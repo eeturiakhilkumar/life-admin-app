@@ -14,20 +14,10 @@ import {
   signOut as firebaseSignOut,
   updateProfile
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 
 import { firebaseAuth, firebaseDb } from "../lib/firebase";
-
-// Native Firebase modules are imported dynamically to prevent web build breakage
-const getNativeAuth = () => {
-  if (Platform.OS === "web") return null;
-  return require("@react-native-firebase/auth").default;
-};
-
-const getNativeFirestore = () => {
-  if (Platform.OS === "web") return null;
-  return require("@react-native-firebase/firestore").default;
-};
+import { getServerTimestamp, getNativeAuth, getNativeFirestore } from "../lib/firebase-platform";
 
 type AuthContextValue = {
   isConfigured: boolean;
@@ -109,17 +99,11 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       email: currentUser.email,
       phoneNumber: currentUser.phoneNumber,
       displayName: additionalData.displayName || currentUser.displayName,
-      updatedAt:
-        Platform.OS === "web"
-          ? serverTimestamp()
-          : require("@react-native-firebase/firestore").default.FieldValue.serverTimestamp()
+      updatedAt: getServerTimestamp()
     };
 
     if (isNewUser) {
-      profileData.createdAt =
-        Platform.OS === "web"
-          ? serverTimestamp()
-          : require("@react-native-firebase/firestore").default.FieldValue.serverTimestamp();
+      profileData.createdAt = getServerTimestamp();
     }
 
     if (Platform.OS === "web") {
