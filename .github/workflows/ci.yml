@@ -148,30 +148,46 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: validate
     runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
     steps:
+      - name: Check Firebase production prerequisites
+        id: production_gate
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ] && [ -n "$FIREBASE_PROJECT_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Firebase production deploy skipped because FIREBASE_SERVICE_ACCOUNT or FIREBASE_PROJECT_ID is not configured." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Checkout
+        if: steps.production_gate.outputs.enabled == 'true'
         uses: actions/checkout@v4
 
       - name: Setup pnpm
+        if: steps.production_gate.outputs.enabled == 'true'
         uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
 
       - name: Setup Node
+        if: steps.production_gate.outputs.enabled == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
 
       - name: Install dependencies
+        if: steps.production_gate.outputs.enabled == 'true'
         run: pnpm install --frozen-lockfile=false
 
       - name: Build web
+        if: steps.production_gate.outputs.enabled == 'true'
         run: pnpm build:web
 
       - name: Verify Firebase production secrets
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        if: steps.production_gate.outputs.enabled == 'true'
         run: |
           if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
             echo "Missing required GitHub Actions secret: FIREBASE_SERVICE_ACCOUNT" >&2
@@ -183,6 +199,7 @@ jobs:
           fi
 
       - name: Verify Firebase production target configuration
+        if: steps.production_gate.outputs.enabled == 'true'
         run: |
           if ! grep -q '"target": "life-admin-production"' firebase.json; then
             echo 'Missing Firebase Hosting target "life-admin-production" in firebase.json' >&2
@@ -194,6 +211,7 @@ jobs:
           fi
 
       - name: Deploy to Firebase production
+        if: steps.production_gate.outputs.enabled == 'true'
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
@@ -203,34 +221,66 @@ jobs:
           channelId: live
 
   build-mobile:
+    name: build-mobile
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: validate
     runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
+      - name: Check Mobile build prerequisites
+        id: mobile_gate
+        run: |
+          if [ -n "$EXPO_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Mobile build skipped because EXPO_TOKEN is not configured." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Checkout
+        if: steps.mobile_gate.outputs.enabled == 'true'
         uses: actions/checkout@v4
 
       - name: Setup pnpm
+        if: steps.mobile_gate.outputs.enabled == 'true'
         uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
 
       - name: Setup Node
+        if: steps.mobile_gate.outputs.enabled == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
 
       - name: Install dependencies
+        if: steps.mobile_gate.outputs.enabled == 'true'
         run: pnpm install --frozen-lockfile=false
 
+      - name: Verify Mobile configuration files
+        if: steps.mobile_gate.outputs.enabled == 'true'
+        run: |
+          if [ ! -f "apps/app/google-services.json" ]; then
+            echo "Missing apps/app/google-services.json" >&2
+            exit 1
+          fi
+          if [ ! -f "apps/app/GoogleService-Info.plist" ]; then
+            echo "Missing apps/app/GoogleService-Info.plist" >&2
+            exit 1
+          fi
+
       - name: Setup Expo and EAS
+        if: steps.mobile_gate.outputs.enabled == 'true'
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build iOS preview
+        if: steps.mobile_gate.outputs.enabled == 'true'
         run: eas build --platform ios --profile preview --non-interactive
 
       - name: Build Android preview
+        if: steps.mobile_gate.outputs.enabled == 'true'
         run: eas build --platform android --profile preview --non-interactive

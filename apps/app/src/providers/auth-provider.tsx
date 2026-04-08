@@ -97,19 +97,30 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     };
   }, []);
 
-  const saveUserProfile = async (currentUser: User | null, additionalData: { displayName?: string } = {}) => {
+  const saveUserProfile = async (
+    currentUser: User | null,
+    additionalData: { displayName?: string } = {},
+    isNewUser = false
+  ) => {
     if (!currentUser) return;
 
-    const profileData = {
+    const profileData: Record<string, unknown> = {
       uid: currentUser.uid,
       email: currentUser.email,
       phoneNumber: currentUser.phoneNumber,
       displayName: additionalData.displayName || currentUser.displayName,
-      createdAt:
-        Platform.OS === "web" ? serverTimestamp() : require("@react-native-firebase/firestore").default.FieldValue.serverTimestamp(),
       updatedAt:
-        Platform.OS === "web" ? serverTimestamp() : require("@react-native-firebase/firestore").default.FieldValue.serverTimestamp()
+        Platform.OS === "web"
+          ? serverTimestamp()
+          : require("@react-native-firebase/firestore").default.FieldValue.serverTimestamp()
     };
+
+    if (isNewUser) {
+      profileData.createdAt =
+        Platform.OS === "web"
+          ? serverTimestamp()
+          : require("@react-native-firebase/firestore").default.FieldValue.serverTimestamp();
+    }
 
     if (Platform.OS === "web") {
       if (!firebaseDb) return;
@@ -163,7 +174,9 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         resetAuthFlow();
 
         if (result?.user) {
-          await saveUserProfile(result.user as unknown as User);
+          // Check if it's likely a new user (no displayName)
+          const isNewUser = !result.user.displayName;
+          await saveUserProfile(result.user as unknown as User, {}, isNewUser);
         }
       },
       async signInWithEmail(email, password) {
@@ -193,7 +206,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           const credential = await nativeAuth().createUserWithEmailAndPassword(email, password);
           newUser = credential.user as unknown as User;
         }
-        await saveUserProfile(newUser);
+        await saveUserProfile(newUser, {}, true);
       },
       async updateDisplayName(displayName) {
         if (Platform.OS === "web") {
