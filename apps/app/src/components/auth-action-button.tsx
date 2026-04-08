@@ -24,7 +24,8 @@ export const AuthActionButton = ({
       disabled={disabled}
       onPress={onPress}
       style={{
-        alignSelf: "flex-start",
+        alignSelf: "stretch",
+        alignItems: "center",
         borderRadius: 999,
         borderWidth: variant === "secondary" ? 1 : 0,
         borderColor: variant === "secondary" ? colors.mist : "transparent",
