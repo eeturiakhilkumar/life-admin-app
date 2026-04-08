@@ -1,6 +1,7 @@
 import Constants from "expo-constants";
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 import { projectFirebaseConfig } from "./firebase-config";
 
 type FirebaseExtra = {
@@ -52,3 +53,5 @@ const hasFirebaseConfig = Boolean(
 export const firebaseApp = hasFirebaseConfig ? (getApps().length ? getApp() : initializeApp(firebaseConfig)) : null;
 
 export const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
+
+export const firebaseDb = firebaseApp ? getFirestore(firebaseApp) : null;
