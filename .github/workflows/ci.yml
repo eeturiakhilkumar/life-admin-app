@@ -37,7 +37,7 @@ jobs:
         run: pnpm build:web
 
   deploy-web-preview:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && ${{ secrets.FIREBASE_SERVICE_ACCOUNT }} != '' && ${{ secrets.FIREBASE_PROJECT_ID }} != ''
     needs: validate
     runs-on: ubuntu-latest
     steps:
