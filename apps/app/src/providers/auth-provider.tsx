@@ -15,10 +15,19 @@ import {
   updateProfile
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import auth from "@react-native-firebase/auth";
-import firestore from "@react-native-firebase/firestore";
 
 import { firebaseAuth, firebaseDb } from "../lib/firebase";
+
+// Native Firebase modules are imported dynamically to prevent web build breakage
+const getNativeAuth = () => {
+  if (Platform.OS === "web") return null;
+  return require("@react-native-firebase/auth").default;
+};
+
+const getNativeFirestore = () => {
+  if (Platform.OS === "web") return null;
+  return require("@react-native-firebase/firestore").default;
+};
 
 type AuthContextValue = {
   isConfigured: boolean;
@@ -96,15 +105,20 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       email: currentUser.email,
       phoneNumber: currentUser.phoneNumber,
       displayName: additionalData.displayName || currentUser.displayName,
-      createdAt: Platform.OS === "web" ? serverTimestamp() : firestore.FieldValue.serverTimestamp(),
-      updatedAt: Platform.OS === "web" ? serverTimestamp() : firestore.FieldValue.serverTimestamp()
+      createdAt:
+        Platform.OS === "web" ? serverTimestamp() : require("@react-native-firebase/firestore").default.FieldValue.serverTimestamp(),
+      updatedAt:
+        Platform.OS === "web" ? serverTimestamp() : require("@react-native-firebase/firestore").default.FieldValue.serverTimestamp()
     };
 
     if (Platform.OS === "web") {
       if (!firebaseDb) return;
       await setDoc(doc(firebaseDb, "users", currentUser.uid), profileData, { merge: true });
     } else {
-      await firestore().collection("users").doc(currentUser.uid).set(profileData, { merge: true });
+      const nativeFirestore = getNativeFirestore();
+      if (nativeFirestore) {
+        await nativeFirestore().collection("users").doc(currentUser.uid).set(profileData, { merge: true });
+      }
     }
   };
 
@@ -133,8 +147,11 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
             throw error;
           }
         } else {
-          const confirmation = await auth().signInWithPhoneNumber(phone);
-          confirmationResultRef.current = confirmation as unknown as ConfirmationResult;
+          const nativeAuth = getNativeAuth();
+          if (nativeAuth) {
+            const confirmation = await nativeAuth().signInWithPhoneNumber(phone);
+            confirmationResultRef.current = confirmation as unknown as ConfirmationResult;
+          }
         }
       },
       async verifyOtp({ token }) {
@@ -156,7 +173,10 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           }
           await signInWithEmailAndPassword(firebaseAuth, email, password);
         } else {
-          await auth().signInWithEmailAndPassword(email, password);
+          const nativeAuth = getNativeAuth();
+          if (nativeAuth) {
+            await nativeAuth().signInWithEmailAndPassword(email, password);
+          }
         }
       },
       async signUpWithEmail(email, password) {
@@ -168,7 +188,9 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
           newUser = credential.user;
         } else {
-          const credential = await auth().createUserWithEmailAndPassword(email, password);
+          const nativeAuth = getNativeAuth();
+          if (!nativeAuth) throw new Error("Native Auth not available");
+          const credential = await nativeAuth().createUserWithEmailAndPassword(email, password);
           newUser = credential.user as unknown as User;
         }
         await saveUserProfile(newUser);
@@ -183,14 +205,16 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           setUser({ ...firebaseAuth.currentUser });
           await saveUserProfile(firebaseAuth.currentUser, { displayName });
         } else {
-          const currentUser = auth().currentUser;
+          const nativeAuth = getNativeAuth();
+          if (!nativeAuth) throw new Error("Native Auth not available");
+          const currentUser = nativeAuth().currentUser;
           if (!currentUser) {
             throw new Error("No authenticated user found.");
           }
           await currentUser.updateProfile({ displayName });
           // Refresh user state
-          setUser(auth().currentUser as unknown as User);
-          await saveUserProfile(auth().currentUser as unknown as User, { displayName });
+          setUser(nativeAuth().currentUser as unknown as User);
+          await saveUserProfile(nativeAuth().currentUser as unknown as User, { displayName });
         }
       },
       resetAuthFlow,
@@ -201,7 +225,10 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           }
           await firebaseSignOut(firebaseAuth);
         } else {
-          await auth().signOut();
+          const nativeAuth = getNativeAuth();
+          if (nativeAuth) {
+            await nativeAuth().signOut();
+          }
         }
       }
     }),
