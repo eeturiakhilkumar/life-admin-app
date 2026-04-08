@@ -5,9 +5,11 @@ import { Card, colors, Section, spacing } from "@life-admin/ui";
 
 import { Screen } from "../../src/components/screen";
 import { registerForReminders } from "../../src/lib/notifications";
+import { useAuth } from "../../src/providers/auth-provider";
 import { useAppStore } from "../../src/state/use-app-store";
 
 export default function SettingsScreen() {
+  const { signOut, user } = useAuth();
   const { aiAssistEnabled, privacyMode, notificationsEnabled, setAiAssistEnabled, setNotificationsEnabled } =
     useAppStore();
 
@@ -53,6 +55,15 @@ export default function SettingsScreen() {
             </Pressable>
           </Link>
         </Card>
+        <Card style={{ gap: spacing.sm }}>
+          <Text style={{ fontSize: 18, fontWeight: "700", color: colors.ink }}>Account</Text>
+          <Text style={{ color: colors.slate }}>
+            Signed in as {user?.phoneNumber ?? "a verified mobile user"}.
+          </Text>
+          <Pressable onPress={() => void signOut()}>
+            <Text style={{ color: colors.accent, fontWeight: "700" }}>Sign out</Text>
+          </Pressable>
+        </Card>
         <Link href="/settings/notifications" asChild>
           <Pressable>
             <Text style={{ color: colors.ink, fontWeight: "700" }}>Open notification settings</Text>
@@ -62,4 +73,3 @@ export default function SettingsScreen() {
     </Screen>
   );
 }
-

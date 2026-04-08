@@ -1,5 +1,7 @@
 import Constants from "expo-constants";
-import { createClient } from "@supabase/supabase-js";
+import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createClient, processLock } from "@supabase/supabase-js";
 
 import { buildDashboardFeed, mockItems, type BaseItem, type QuickCaptureInput } from "@life-admin/domain";
 import { quickCapturePrompt } from "@life-admin/ai";
@@ -11,7 +13,15 @@ const extra = Constants.expoConfig?.extra as {
 
 export const supabase =
   extra?.supabaseUrl && extra?.supabaseAnonKey
-    ? createClient(extra.supabaseUrl, extra.supabaseAnonKey)
+    ? createClient(extra.supabaseUrl, extra.supabaseAnonKey, {
+        auth: {
+          ...(Platform.OS !== "web" ? { storage: AsyncStorage } : {}),
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: false,
+          lock: processLock
+        }
+      })
     : null;
 
 export type LifeAdminClient = {
@@ -52,4 +62,3 @@ export const lifeAdminClient: LifeAdminClient = {
     };
   }
 };
-

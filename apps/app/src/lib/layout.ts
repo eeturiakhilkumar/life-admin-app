@@ -8,15 +8,15 @@ export const breakpoints = {
 
 export const useResponsiveLayout = () => {
   const { width } = useWindowDimensions();
-  const isTablet = width >= breakpoints.tablet;
-  const isLaptop = width >= breakpoints.laptop;
+  const safeWidth = width > 0 ? width : 360;
+  const isTablet = safeWidth >= breakpoints.tablet;
+  const isLaptop = safeWidth >= breakpoints.laptop;
 
   return {
-    width,
+    width: safeWidth,
     isTablet,
     isLaptop,
-    contentWidth: isLaptop ? 1120 : isTablet ? 920 : width,
+    contentWidth: isLaptop ? 1120 : isTablet ? 920 : safeWidth,
     horizontalPadding: isLaptop ? 32 : isTablet ? 24 : 16
   };
 };
-

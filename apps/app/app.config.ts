@@ -1,6 +1,47 @@
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 import type { ExpoConfig } from "expo/config";
 
-const appEnv = process.env.APP_ENV ?? "development";
+const parseEnvFile = (filePath: string) => {
+  if (!existsSync(filePath)) {
+    return {};
+  }
+
+  const fileContents = readFileSync(filePath, "utf8");
+
+  return fileContents.split(/\r?\n/).reduce<Record<string, string>>((accumulator, rawLine) => {
+    const line = rawLine.trim();
+
+    if (!line || line.startsWith("#")) {
+      return accumulator;
+    }
+
+    const separatorIndex = line.indexOf("=");
+
+    if (separatorIndex === -1) {
+      return accumulator;
+    }
+
+    const key = line.slice(0, separatorIndex).trim();
+    const value = line.slice(separatorIndex + 1).trim().replace(/^['"]|['"]$/g, "");
+
+    if (key) {
+      accumulator[key] = value;
+    }
+
+    return accumulator;
+  }, {});
+};
+
+const rootDir = path.resolve(__dirname, "../..");
+const envFromRoot = {
+  ...parseEnvFile(path.join(rootDir, ".env")),
+  ...parseEnvFile(path.join(rootDir, ".env.local"))
+};
+
+const readConfigValue = (key: string) => process.env[key] ?? envFromRoot[key];
+
+const appEnv = readConfigValue("APP_ENV") ?? "development";
 const isProduction = appEnv === "production";
 
 const config: ExpoConfig = {
@@ -52,9 +93,15 @@ const config: ExpoConfig = {
     eas: {
       projectId: "replace-with-eas-project-id"
     },
-    supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
-    supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-    firebaseProjectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID
+    supabaseUrl: readConfigValue("EXPO_PUBLIC_SUPABASE_URL"),
+    supabaseAnonKey: readConfigValue("EXPO_PUBLIC_SUPABASE_ANON_KEY"),
+    firebaseApiKey: readConfigValue("EXPO_PUBLIC_FIREBASE_API_KEY"),
+    firebaseAuthDomain: readConfigValue("EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN"),
+    firebaseProjectId: readConfigValue("EXPO_PUBLIC_FIREBASE_PROJECT_ID"),
+    firebaseAppId: readConfigValue("EXPO_PUBLIC_FIREBASE_APP_ID"),
+    firebaseMessagingSenderId: readConfigValue("EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID"),
+    firebaseStorageBucket: readConfigValue("EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET"),
+    firebaseMeasurementId: readConfigValue("EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID")
   },
   experiments: {
     typedRoutes: true
@@ -68,4 +115,3 @@ const config: ExpoConfig = {
 };
 
 export default config;
-

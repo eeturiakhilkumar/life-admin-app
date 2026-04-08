@@ -13,20 +13,21 @@ const urgencyStyles: Record<DashboardFeedItem["urgency"], { backgroundColor: str
 export const FeedCard = ({ item }: { item: DashboardFeedItem }) => (
   <Card style={{ gap: spacing.sm }}>
     <View style={{ flexDirection: "row", justifyContent: "space-between", gap: spacing.md, flexWrap: "wrap" }}>
-      <View style={{ flex: 1, gap: 6 }}>
-        <Text style={{ fontSize: 18, fontWeight: "700", color: colors.ink }}>{item.title}</Text>
+      <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
+        <Text style={{ fontSize: 18, fontWeight: "700", color: colors.ink, flexShrink: 1 }}>{item.title}</Text>
         <Text style={{ color: colors.slate, textTransform: "capitalize" }}>{item.type.replace("_", " ")}</Text>
       </View>
       <View
         style={{
           alignSelf: "flex-start",
+          maxWidth: "100%",
           paddingHorizontal: spacing.sm,
           paddingVertical: 6,
           borderRadius: 999,
           backgroundColor: urgencyStyles[item.urgency].backgroundColor
         }}
       >
-        <Text style={{ fontWeight: "700", color: urgencyStyles[item.urgency].color }}>
+        <Text style={{ fontWeight: "700", color: urgencyStyles[item.urgency].color, flexShrink: 1 }}>
           {item.urgency.toUpperCase()}
         </Text>
       </View>

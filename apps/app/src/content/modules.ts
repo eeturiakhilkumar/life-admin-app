@@ -1,3 +1,4 @@
+import type { Href } from "expo-router";
 import type { ItemType } from "@life-admin/domain";
 
 export const moduleCards: Array<{
@@ -5,7 +6,7 @@ export const moduleCards: Array<{
   title: string;
   subtitle: string;
   cta: string;
-  route: string;
+  route: Href;
 }> = [
   {
     type: "bill",
@@ -56,4 +57,3 @@ export const dashboardStats = [
   { label: "Documents", value: "23" },
   { label: "AI suggestions", value: "05" }
 ];
-

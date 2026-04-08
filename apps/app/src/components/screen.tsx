@@ -15,16 +15,19 @@ export const Screen = ({ title, subtitle, rightRail, children }: ScreenProps) =>
   const { contentWidth, horizontalPadding, isTablet } = useResponsiveLayout();
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1, width: "100%", backgroundColor: colors.background }}>
       <ScrollView
+        style={{ flex: 1, width: "100%" }}
         contentContainerStyle={{
+          width: "100%",
+          flexGrow: 1,
           alignItems: "center",
           paddingHorizontal: horizontalPadding,
           paddingTop: spacing.lg,
           paddingBottom: spacing.xl
         }}
       >
-        <View style={{ width: "100%", maxWidth: contentWidth, gap: spacing.lg }}>
+        <View style={{ width: "100%", maxWidth: contentWidth, alignSelf: "center", gap: spacing.lg }}>
           <View
             style={{
               flexDirection: isTablet ? "row" : "column",
@@ -39,16 +42,19 @@ export const Screen = ({ title, subtitle, rightRail, children }: ScreenProps) =>
                   fontSize: isTablet ? 34 : 28,
                   lineHeight: isTablet ? 40 : 34,
                   fontWeight: "800",
-                  color: colors.ink
+                  color: colors.ink,
+                  flexShrink: 1
                 }}
               >
                 {title}
               </Text>
               {subtitle ? (
-                <Text style={{ fontSize: isTablet ? 16 : 15, lineHeight: 24, color: colors.slate }}>{subtitle}</Text>
+                <Text style={{ fontSize: isTablet ? 16 : 15, lineHeight: 24, color: colors.slate, flexShrink: 1 }}>
+                  {subtitle}
+                </Text>
               ) : null}
             </View>
-            {rightRail ? <View style={{ alignSelf: isTablet ? "flex-start" : "stretch" }}>{rightRail}</View> : null}
+            {rightRail ? <View style={{ alignSelf: isTablet ? "flex-start" : "stretch", minWidth: 0 }}>{rightRail}</View> : null}
           </View>
           {children}
         </View>

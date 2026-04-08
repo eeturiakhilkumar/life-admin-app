@@ -26,7 +26,7 @@ export default function ModulesScreen() {
       >
         {moduleCards.map((moduleCard) => (
           <View
-            key={moduleCard.route}
+            key={moduleCard.type}
             style={{
               width: "100%",
               maxWidth: isLaptop ? "48.5%" : isTablet ? "48%" : "100%"
