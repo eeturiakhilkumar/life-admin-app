@@ -7,11 +7,33 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:386277992148:android:REPLACE_WITH_ACTUAL_ID",
+        "mobilesdk_app_id": "1:386277992148:android:564b6a088cdf29d9647d41",
         "android_client_info": {
           "package_name": "com.lifeadmin.app"
         }
+      },
+      "oauth_client": [
+        {
+          "client_id": "386277992148-cirua1smvoetln96tklsoog698i2j6hf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAaBBAPKTDqpvTdB2ivMBJRxShh0XQSFn8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "386277992148-cirua1smvoetln96tklsoog698i2j6hf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
       }
     }
-  ]
+  ],
+  "configuration_version": "1"
 }
