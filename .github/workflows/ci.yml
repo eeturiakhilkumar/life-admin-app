@@ -21,7 +21,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24.14.1
+          node-version: 22.x
           cache: pnpm
 
       - name: Install dependencies
@@ -52,7 +52,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24.14.1
+          node-version: 22.x
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile=false
@@ -84,7 +84,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24.14.1
+          node-version: 22.x
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile=false
@@ -117,7 +117,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24.14.1
+          node-version: 22.x
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile=false
