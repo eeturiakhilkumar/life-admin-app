@@ -443,7 +443,7 @@ export default function SignInScreen() {
               <AuthActionButton
                 label="Back to Sign In"
                 onPress={() => void signOut()}
-                variant="ghost"
+                variant="secondary"
               />
             </View>
 
