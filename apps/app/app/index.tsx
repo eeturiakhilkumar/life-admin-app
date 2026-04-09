@@ -4,7 +4,7 @@ import { colors, spacing } from "@life-admin/ui";
 import { useAuth } from "../src/providers/auth-provider";
 
 export default function IndexRoute() {
-  const { isInitializing, session } = useAuth();
+  const { isInitializing, session, isProfileComplete } = useAuth();
 
   if (isInitializing) {
     return (
@@ -23,5 +23,9 @@ export default function IndexRoute() {
     );
   }
 
-  return <Redirect href={session ? "/dashboard" : "/auth/sign-in"} />;
+  if (!session) {
+    return <Redirect href="/auth/sign-in" />;
+  }
+
+  return <Redirect href={isProfileComplete ? "/dashboard" : "/auth/sign-in"} />;
 }

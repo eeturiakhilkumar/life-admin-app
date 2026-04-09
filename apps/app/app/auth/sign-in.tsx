@@ -18,10 +18,12 @@ export default function SignInScreen() {
     requestOtp,
     resetAuthFlow,
     session,
+    profile,
+    isProfileComplete,
     verifyOtp,
     signInWithEmail,
     signUpWithEmail,
-    updateDisplayName
+    completeProfile
   } = useAuth();
 
   const [activeTab, setActiveTab] = useState<AuthTab>("mobile");
@@ -42,6 +44,9 @@ export default function SignInScreen() {
   // Profile Completion State
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [userName, setUserName] = useState("");
+  const [extraEmail, setExtraEmail] = useState("");
+  const [extraPassword, setExtraPassword] = useState("");
+  const [extraMobile, setExtraMobile] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -55,12 +60,16 @@ export default function SignInScreen() {
 
   // Handle profile completion modal trigger
   useEffect(() => {
-    if (!isInitializing && session && !session.displayName && authMode === "signUp") {
+    if (!isInitializing && session && !isProfileComplete) {
       setShowProfileModal(true);
+      // Pre-fill if we have some data
+      if (profile?.displayName) setUserName(profile.displayName);
+    } else if (!isInitializing && session && isProfileComplete) {
+      setShowProfileModal(false);
     }
-  }, [isInitializing, session, authMode]);
+  }, [isInitializing, session, isProfileComplete, profile]);
 
-  if (!isInitializing && session && (session.displayName || authMode === "signIn") && !showProfileModal) {
+  if (!isInitializing && session && isProfileComplete && !showProfileModal) {
     return <Redirect href="/dashboard" />;
   }
 
@@ -150,15 +159,55 @@ export default function SignInScreen() {
     }
   };
 
+  const validateUsername = (name: string) => {
+    if (name.length < 4 || name.length > 20) {
+      return "Username must be between 4 and 20 characters.";
+    }
+    if (!/^[a-zA-Z0-9 ]+$/.test(name)) {
+      return "Username can only contain alphanumeric characters and spaces.";
+    }
+    return null;
+  };
+
   const handleSaveProfile = async () => {
-    if (!userName.trim()) {
-      setErrorMessage("Please enter your name.");
+    const userError = validateUsername(userName.trim());
+    if (userError) {
+      setErrorMessage(userError);
       return;
     }
 
+    const needsEmail = !profile?.email && !session?.email;
+    const needsMobile = !profile?.phoneNumber && !session?.phoneNumber;
+
+    if (needsEmail) {
+      if (!extraEmail || !extraPassword) {
+        setErrorMessage("Please enter both email and password.");
+        return;
+      }
+      if (extraPassword.length < 6) {
+        setErrorMessage("Password must be at least 6 characters.");
+        return;
+      }
+    }
+
+    if (needsMobile) {
+      const { phone, error } = buildPhoneNumberFromInput(extraMobile, { defaultCountryCode: "+91" });
+      if (!phone || error) {
+        setErrorMessage(error || "Invalid mobile number.");
+        return;
+      }
+    }
+
     setIsSavingProfile(true);
+    setErrorMessage(null);
     try {
-      await updateDisplayName(userName);
+      const { phone } = buildPhoneNumberFromInput(extraMobile, { defaultCountryCode: "+91" });
+      await completeProfile({
+        displayName: userName.trim(),
+        email: extraEmail || undefined,
+        password: extraPassword || undefined,
+        phoneNumber: phone || undefined,
+      });
       setShowProfileModal(false);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Could not save profile.");
@@ -326,17 +375,61 @@ export default function SignInScreen() {
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing.md }}>
           <Card style={{ gap: spacing.md }}>
             <Text style={{ fontSize: 20, fontWeight: "700", color: colors.ink }}>Complete your profile</Text>
-            <Text style={{ color: colors.slate }}>Please enter your name to continue.</Text>
+            <Text style={{ color: colors.slate }}>Please provide the following details to continue.</Text>
 
-            <View>
-              <Text style={labelStyle}>Your Name</Text>
-              <TextInput
-                value={userName}
-                onChangeText={setUserName}
-                placeholder="John Doe"
-                placeholderTextColor={colors.slate}
-                style={inputStyle}
-              />
+            <View style={{ gap: spacing.md }}>
+              <View>
+                <Text style={labelStyle}>Username</Text>
+                <TextInput
+                  value={userName}
+                  onChangeText={setUserName}
+                  placeholder="e.g. John Doe"
+                  placeholderTextColor={colors.slate}
+                  style={inputStyle}
+                />
+              </View>
+
+              {(!profile?.email && !session?.email) && (
+                <>
+                  <View>
+                    <Text style={labelStyle}>Email Address</Text>
+                    <TextInput
+                      value={extraEmail}
+                      onChangeText={setExtraEmail}
+                      placeholder="you@example.com"
+                      placeholderTextColor={colors.slate}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      style={inputStyle}
+                    />
+                  </View>
+                  <View>
+                    <Text style={labelStyle}>Password</Text>
+                    <TextInput
+                      value={extraPassword}
+                      onChangeText={setExtraPassword}
+                      placeholder="Min. 6 characters"
+                      placeholderTextColor={colors.slate}
+                      secureTextEntry
+                      style={inputStyle}
+                    />
+                  </View>
+                </>
+              )}
+
+              {(!profile?.phoneNumber && !session?.phoneNumber) && (
+                <View>
+                  <Text style={labelStyle}>Mobile Number</Text>
+                  <TextInput
+                    value={extraMobile}
+                    onChangeText={setExtraMobile}
+                    placeholder="e.g. 9876543210"
+                    placeholderTextColor={colors.slate}
+                    keyboardType="phone-pad"
+                    style={inputStyle}
+                  />
+                </View>
+              )}
             </View>
 
             <AuthActionButton
