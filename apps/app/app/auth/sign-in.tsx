@@ -65,7 +65,7 @@ export default function SignInScreen() {
       setShowProfileModal(true);
       // Pre-fill if we have some data
       if (profile?.displayName) setUserName(profile.displayName);
-    } else if (!isInitializing && session && isProfileComplete) {
+    } else if (!isInitializing && (isProfileComplete || !session)) {
       setShowProfileModal(false);
     }
   }, [isInitializing, session, isProfileComplete, profile]);
