@@ -5,22 +5,30 @@ import type { ConfirmationResult, User } from "firebase/auth";
 import {
   RecaptchaVerifier,
   browserLocalPersistence,
+  createUserWithEmailAndPassword,
   indexedDBLocalPersistence,
   onAuthStateChanged,
   setPersistence,
+  signInWithEmailAndPassword,
   signInWithPhoneNumber,
-  signOut as firebaseSignOut
+  signOut as firebaseSignOut,
+  updateProfile
 } from "firebase/auth";
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 
-import { firebaseAuth } from "../lib/firebase";
+import { firebaseAuth, firebaseDb } from "../lib/firebase";
 
 type AuthContextValue = {
   isConfigured: boolean;
   isInitializing: boolean;
   session: User | null;
   user: User | null;
+  profile: { displayName?: string; phoneNumber?: string; email?: string } | null;
   requestOtp: (phone: string) => Promise<void>;
   verifyOtp: (params: { phone: string; token: string }) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  saveUserProfile: (data: { displayName: string; phoneNumber: string; email: string }) => Promise<void>;
   resetAuthFlow: () => void;
   signOut: () => Promise<void>;
 };
@@ -29,6 +37,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<AuthContextValue["profile"]>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const confirmationResultRef = useRef<ConfirmationResult | null>(null);
   const verifierRef = useRef<RecaptchaVerifier | null>(null);
@@ -65,9 +74,19 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       });
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
       if (isActive) {
         setUser(nextUser);
+        if (nextUser && firebaseDb) {
+          const profileDoc = await getDoc(doc(firebaseDb, "users", nextUser.uid));
+          if (profileDoc.exists()) {
+            setProfile(profileDoc.data() as AuthContextValue["profile"]);
+          } else {
+            setProfile({});
+          }
+        } else {
+          setProfile(null);
+        }
         setIsInitializing(false);
       }
     });
@@ -85,6 +104,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       isInitializing,
       session: user,
       user,
+      profile,
       async requestOtp(phone) {
         if (!firebaseAuth) {
           throw new Error("Firebase phone auth is not configured for this application yet.");
@@ -114,6 +134,39 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
         await confirmationResultRef.current.confirm(token);
         resetAuthFlow();
+      },
+      async signInWithEmail(email, password) {
+        if (!firebaseAuth) {
+          throw new Error("Firebase auth is not configured.");
+        }
+        await signInWithEmailAndPassword(firebaseAuth, email, password);
+      },
+      async signUpWithEmail(email, password) {
+        if (!firebaseAuth) {
+          throw new Error("Firebase auth is not configured.");
+        }
+        await createUserWithEmailAndPassword(firebaseAuth, email, password);
+      },
+      async saveUserProfile(data) {
+        if (!firebaseAuth || !firebaseAuth.currentUser || !firebaseDb) {
+          throw new Error("Auth or Database not configured.");
+        }
+        const { uid } = firebaseAuth.currentUser;
+
+        // Update Auth Profile
+        await updateProfile(firebaseAuth.currentUser, {
+          displayName: data.displayName
+        });
+
+        // Save to Firestore
+        await setDoc(doc(firebaseDb, "users", uid), {
+          ...data,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+
+        // Update local state
+        setProfile(data);
+        setUser({ ...firebaseAuth.currentUser });
       },
       resetAuthFlow,
       async signOut() {

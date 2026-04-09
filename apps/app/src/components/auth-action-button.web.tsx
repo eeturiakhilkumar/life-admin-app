@@ -18,7 +18,8 @@ export const AuthActionButton = ({
   const palette = getPalette(variant, disabled);
 
   const style: CSSProperties = {
-    alignSelf: "flex-start",
+    alignSelf: "stretch",
+    width: "100%",
     borderRadius: 999,
     border: variant === "secondary" ? `1px solid ${colors.mist}` : "1px solid transparent",
     backgroundColor: palette.backgroundColor,
