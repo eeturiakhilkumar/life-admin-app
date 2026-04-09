@@ -18,10 +18,12 @@ export default function SignInScreen() {
     requestOtp,
     resetAuthFlow,
     session,
+    profile,
     verifyOtp,
     signInWithEmail,
     signUpWithEmail,
-    updateDisplayName
+    updateProfileData,
+    signOut
   } = useAuth();
 
   const [activeTab, setActiveTab] = useState<AuthTab>("mobile");
@@ -42,6 +44,8 @@ export default function SignInScreen() {
   // Profile Completion State
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [userName, setUserName] = useState("");
+  const [profileEmail, setProfileEmail] = useState("");
+  const [profileMobile, setProfileMobile] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -55,12 +59,20 @@ export default function SignInScreen() {
 
   // Handle profile completion modal trigger
   useEffect(() => {
-    if (!isInitializing && session && !session.displayName && authMode === "signUp") {
-      setShowProfileModal(true);
+    if (!isInitializing && session) {
+      const isProfileIncomplete = !profile?.displayName || !profile?.email || !profile?.phoneNumber;
+      if (isProfileIncomplete) {
+        setShowProfileModal(true);
+        if (profile?.displayName) setUserName(profile.displayName);
+        if (profile?.email) setProfileEmail(profile.email);
+        if (profile?.phoneNumber) setProfileMobile(profile.phoneNumber);
+      } else {
+        setShowProfileModal(false);
+      }
     }
-  }, [isInitializing, session, authMode]);
+  }, [isInitializing, session, profile]);
 
-  if (!isInitializing && session && (session.displayName || authMode === "signIn") && !showProfileModal) {
+  if (!isInitializing && session && profile?.displayName && profile?.email && profile?.phoneNumber && !showProfileModal) {
     return <Redirect href="/dashboard" />;
   }
 
@@ -151,14 +163,34 @@ export default function SignInScreen() {
   };
 
   const handleSaveProfile = async () => {
-    if (!userName.trim()) {
-      setErrorMessage("Please enter your name.");
+    const name = userName.trim();
+    if (name.length < 4 || name.length > 20) {
+      setErrorMessage("Name must be between 4 and 20 characters.");
+      return;
+    }
+    if (/[^a-zA-Z0-9 ]/.test(name)) {
+      setErrorMessage("Name can only contain letters, numbers, and spaces.");
+      return;
+    }
+
+    if (!profileEmail.trim() || !profileEmail.includes("@")) {
+      setErrorMessage("Please enter a valid email address.");
+      return;
+    }
+
+    const phoneDraft = buildPhoneNumberFromInput(profileMobile, { defaultCountryCode: "+91" });
+    if (!phoneDraft.phone || phoneDraft.error) {
+      setErrorMessage(phoneDraft.error || "Please enter a valid mobile number.");
       return;
     }
 
     setIsSavingProfile(true);
     try {
-      await updateDisplayName(userName);
+      await updateProfileData({
+        displayName: name,
+        email: profileEmail.trim(),
+        phoneNumber: phoneDraft.phone
+      });
       setShowProfileModal(false);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Could not save profile.");
@@ -326,17 +358,48 @@ export default function SignInScreen() {
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing.md }}>
           <Card style={{ gap: spacing.md }}>
             <Text style={{ fontSize: 20, fontWeight: "700", color: colors.ink }}>Complete your profile</Text>
-            <Text style={{ color: colors.slate }}>Please enter your name to continue.</Text>
+            <Text style={{ color: colors.slate }}>Please provide the following details to continue.</Text>
 
-            <View>
-              <Text style={labelStyle}>Your Name</Text>
-              <TextInput
-                value={userName}
-                onChangeText={setUserName}
-                placeholder="John Doe"
-                placeholderTextColor={colors.slate}
-                style={inputStyle}
-              />
+            <View style={{ gap: spacing.md }}>
+              <View>
+                <Text style={labelStyle}>Your Name</Text>
+                <TextInput
+                  value={userName}
+                  onChangeText={setUserName}
+                  placeholder="John Doe"
+                  placeholderTextColor={colors.slate}
+                  style={inputStyle}
+                  maxLength={20}
+                />
+              </View>
+
+              <View>
+                <Text style={labelStyle}>Email Address</Text>
+                <TextInput
+                  value={profileEmail}
+                  onChangeText={setProfileEmail}
+                  placeholder="you@example.com"
+                  placeholderTextColor={colors.slate}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  style={inputStyle}
+                  editable={!profile?.email}
+                />
+              </View>
+
+              <View>
+                <Text style={labelStyle}>Mobile Number</Text>
+                <TextInput
+                  value={profileMobile}
+                  onChangeText={setProfileMobile}
+                  placeholder="e.g. 9876543210"
+                  placeholderTextColor={colors.slate}
+                  keyboardType="phone-pad"
+                  autoCapitalize="none"
+                  style={inputStyle}
+                  editable={!profile?.phoneNumber}
+                />
+              </View>
             </View>
 
             <AuthActionButton
@@ -347,6 +410,10 @@ export default function SignInScreen() {
             />
 
             {errorMessage && <Text style={{ color: colors.accent, textAlign: "center" }}>{errorMessage}</Text>}
+
+            <TouchableOpacity onPress={() => void signOut()} style={{ alignItems: "center", marginTop: spacing.sm }}>
+              <Text style={{ color: colors.slate, fontSize: 14 }}>Sign Out</Text>
+            </TouchableOpacity>
           </Card>
         </View>
       </Modal>

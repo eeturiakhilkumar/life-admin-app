@@ -14,29 +14,43 @@ import {
   signOut as firebaseSignOut,
   updateProfile
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 import { firebaseAuth, firebaseDb } from "../lib/firebase";
 import { getServerTimestamp, getNativeAuth, getNativeFirestore } from "../lib/firebase-platform";
+
+export type UserProfile = {
+  uid: string;
+  email: string | null;
+  phoneNumber: string | null;
+  displayName: string | null;
+  createdAt?: any;
+  updatedAt?: any;
+  lastLoggedIn?: any;
+};
 
 type AuthContextValue = {
   isConfigured: boolean;
   isInitializing: boolean;
   session: User | null;
   user: User | null;
+  profile: UserProfile | null;
   requestOtp: (phone: string) => Promise<void>;
   verifyOtp: (params: { phone: string; token: string }) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
+  updateProfileData: (data: { displayName?: string; email?: string; phoneNumber?: string }) => Promise<void>;
   updateDisplayName: (displayName: string) => Promise<void>;
   resetAuthFlow: () => void;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const confirmationResultRef = useRef<ConfirmationResult | null>(null);
   const verifierRef = useRef<RecaptchaVerifier | null>(null);
@@ -73,9 +87,14 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       });
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
       if (isActive) {
         setUser(nextUser);
+        if (nextUser) {
+          await fetchProfile(nextUser.uid);
+        } else {
+          setProfile(null);
+        }
         setIsInitializing(false);
       }
     });
@@ -87,22 +106,60 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     };
   }, []);
 
+  const fetchProfile = async (uid: string) => {
+    try {
+      if (Platform.OS === "web") {
+        if (!firebaseDb) return;
+        const docRef = doc(firebaseDb, "users", uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setProfile(docSnap.data() as UserProfile);
+        }
+      } else {
+        const nativeFirestore = getNativeFirestore();
+        if (nativeFirestore) {
+          const docSnap = await nativeFirestore().collection("users").doc(uid).get();
+          if (docSnap.exists) {
+            setProfile(docSnap.data() as UserProfile);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    }
+  };
+
   const saveUserProfile = async (
     currentUser: User | null,
-    additionalData: { displayName?: string } = {},
+    additionalData: { displayName?: string; email?: string; phoneNumber?: string } = {},
     isNewUser = false
   ) => {
     if (!currentUser) return;
 
+    let profileExists = false;
+    if (Platform.OS === "web") {
+      if (firebaseDb) {
+        const docSnap = await getDoc(doc(firebaseDb, "users", currentUser.uid));
+        profileExists = docSnap.exists();
+      }
+    } else {
+      const nativeFirestore = getNativeFirestore();
+      if (nativeFirestore) {
+        const docSnap = await nativeFirestore().collection("users").doc(currentUser.uid).get();
+        profileExists = docSnap.exists;
+      }
+    }
+
     const profileData: Record<string, unknown> = {
       uid: currentUser.uid,
-      email: currentUser.email,
-      phoneNumber: currentUser.phoneNumber,
+      email: additionalData.email || currentUser.email,
+      phoneNumber: additionalData.phoneNumber || currentUser.phoneNumber,
       displayName: additionalData.displayName || currentUser.displayName,
-      updatedAt: getServerTimestamp()
+      updatedAt: getServerTimestamp(),
+      lastLoggedIn: getServerTimestamp()
     };
 
-    if (isNewUser) {
+    if (isNewUser && !profileExists) {
       profileData.createdAt = getServerTimestamp();
     }
 
@@ -115,6 +172,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         await nativeFirestore().collection("users").doc(currentUser.uid).set(profileData, { merge: true });
       }
     }
+    await fetchProfile(currentUser.uid);
   };
 
   const value = useMemo<AuthContextValue>(
@@ -123,6 +181,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       isInitializing,
       session: user,
       user,
+      profile,
       async requestOtp(phone) {
         if (Platform.OS === "web") {
           if (!firebaseAuth) {
@@ -158,23 +217,25 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         resetAuthFlow();
 
         if (result?.user) {
-          // Check if it's likely a new user (no displayName)
-          const isNewUser = !result.user.displayName;
-          await saveUserProfile(result.user as unknown as User, {}, isNewUser);
+          // Pass true for isNewUser; saveUserProfile will verify if it actually exists.
+          await saveUserProfile(result.user as unknown as User, {}, true);
         }
       },
       async signInWithEmail(email, password) {
+        let currentUser: User;
         if (Platform.OS === "web") {
           if (!firebaseAuth) {
             throw new Error("Firebase auth is not configured.");
           }
-          await signInWithEmailAndPassword(firebaseAuth, email, password);
+          const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+          currentUser = credential.user;
         } else {
           const nativeAuth = getNativeAuth();
-          if (nativeAuth) {
-            await nativeAuth().signInWithEmailAndPassword(email, password);
-          }
+          if (!nativeAuth) throw new Error("Native Auth not available");
+          const credential = await nativeAuth().signInWithEmailAndPassword(email, password);
+          currentUser = credential.user as unknown as User;
         }
+        await saveUserProfile(currentUser, {}, false);
       },
       async signUpWithEmail(email, password) {
         let newUser: User;
@@ -192,15 +253,43 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         }
         await saveUserProfile(newUser, {}, true);
       },
-      async updateDisplayName(displayName) {
+      async updateProfileData(data) {
+        const { displayName, email, phoneNumber } = data;
         if (Platform.OS === "web") {
-          if (!firebaseAuth || !firebaseAuth.currentUser) {
+          const currentUser = firebaseAuth?.currentUser;
+          if (!currentUser) {
             throw new Error("No authenticated user found.");
           }
-          await updateProfile(firebaseAuth.currentUser, { displayName });
-          // Refresh user state
-          setUser({ ...firebaseAuth.currentUser });
-          await saveUserProfile(firebaseAuth.currentUser, { displayName });
+          if (displayName) {
+            await updateProfile(currentUser, { displayName });
+          }
+          // Firebase Auth doesn't allow easy update of email/phone without verification usually,
+          // so we mostly update Firestore here for these extra fields if provided.
+          await saveUserProfile(currentUser, data);
+          setUser({ ...currentUser });
+        } else {
+          const nativeAuth = getNativeAuth();
+          if (!nativeAuth) throw new Error("Native Auth not available");
+          const currentUser = nativeAuth().currentUser;
+          if (!currentUser) {
+            throw new Error("No authenticated user found.");
+          }
+          if (displayName) {
+            await currentUser.updateProfile({ displayName });
+          }
+          await saveUserProfile(currentUser as unknown as User, data);
+          setUser(nativeAuth().currentUser as unknown as User);
+        }
+      },
+      async updateDisplayName(displayName) {
+        if (Platform.OS === "web") {
+          const currentUser = firebaseAuth?.currentUser;
+          if (!currentUser) {
+            throw new Error("No authenticated user found.");
+          }
+          await updateProfile(currentUser, { displayName });
+          await saveUserProfile(currentUser, { displayName });
+          setUser({ ...currentUser });
         } else {
           const nativeAuth = getNativeAuth();
           if (!nativeAuth) throw new Error("Native Auth not available");
@@ -209,9 +298,8 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
             throw new Error("No authenticated user found.");
           }
           await currentUser.updateProfile({ displayName });
-          // Refresh user state
+          await saveUserProfile(currentUser as unknown as User, { displayName });
           setUser(nativeAuth().currentUser as unknown as User);
-          await saveUserProfile(nativeAuth().currentUser as unknown as User, { displayName });
         }
       },
       resetAuthFlow,
@@ -227,9 +315,14 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
             await nativeAuth().signOut();
           }
         }
+      },
+      async refreshProfile() {
+        if (user) {
+          await fetchProfile(user.uid);
+        }
       }
     }),
-    [isInitializing, user]
+    [isInitializing, user, profile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
