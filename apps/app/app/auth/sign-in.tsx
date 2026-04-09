@@ -375,8 +375,15 @@ export default function SignInScreen() {
       <Modal animationType="fade" transparent visible={showProfileModal}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing.md }}>
           <Card style={{ gap: spacing.md }}>
-            <Text style={{ fontSize: 20, fontWeight: "700", color: colors.ink }}>Complete your profile</Text>
-            <Text style={{ color: colors.slate }}>Please provide the following details to continue.</Text>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <View style={{ flex: 1, gap: spacing.xs }}>
+                <Text style={{ fontSize: 20, fontWeight: "700", color: colors.ink }}>Complete your profile</Text>
+                <Text style={{ color: colors.slate }}>Please provide the following details to continue.</Text>
+              </View>
+              <TouchableOpacity onPress={() => void signOut()} style={{ paddingLeft: spacing.md }}>
+                <Text style={{ color: colors.accent, fontWeight: "600" }}>Back to Sign In</Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={{ gap: spacing.md }}>
               <View>
@@ -433,19 +440,12 @@ export default function SignInScreen() {
               )}
             </View>
 
-            <View style={{ gap: spacing.sm }}>
-              <AuthActionButton
-                disabled={isSavingProfile}
-                label={isSavingProfile ? "Saving..." : "Continue"}
-                onPress={() => void handleSaveProfile()}
-                variant="primary"
-              />
-              <AuthActionButton
-                label="Back to Sign In"
-                onPress={() => void signOut()}
-                variant="secondary"
-              />
-            </View>
+            <AuthActionButton
+              disabled={isSavingProfile}
+              label={isSavingProfile ? "Saving..." : "Continue"}
+              onPress={() => void handleSaveProfile()}
+              variant="primary"
+            />
 
             {errorMessage && <Text style={{ color: colors.accent, textAlign: "center" }}>{errorMessage}</Text>}
           </Card>
