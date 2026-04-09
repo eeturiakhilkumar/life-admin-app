@@ -23,7 +23,8 @@ export default function SignInScreen() {
     verifyOtp,
     signInWithEmail,
     signUpWithEmail,
-    completeProfile
+    completeProfile,
+    signOut
   } = useAuth();
 
   const [activeTab, setActiveTab] = useState<AuthTab>("mobile");
@@ -432,12 +433,19 @@ export default function SignInScreen() {
               )}
             </View>
 
-            <AuthActionButton
-              disabled={isSavingProfile}
-              label={isSavingProfile ? "Saving..." : "Continue"}
-              onPress={() => void handleSaveProfile()}
-              variant="primary"
-            />
+            <View style={{ gap: spacing.sm }}>
+              <AuthActionButton
+                disabled={isSavingProfile}
+                label={isSavingProfile ? "Saving..." : "Continue"}
+                onPress={() => void handleSaveProfile()}
+                variant="primary"
+              />
+              <AuthActionButton
+                label="Back to Sign In"
+                onPress={() => void signOut()}
+                variant="ghost"
+              />
+            </View>
 
             {errorMessage && <Text style={{ color: colors.accent, textAlign: "center" }}>{errorMessage}</Text>}
           </Card>
