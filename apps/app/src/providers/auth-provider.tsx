@@ -166,7 +166,8 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
         // Update local state
         setProfile(data);
-        setUser({ ...firebaseAuth.currentUser });
+        // Force a re-render of user state without stripping methods
+        setUser(firebaseAuth.currentUser);
       },
       resetAuthFlow,
       async signOut() {
