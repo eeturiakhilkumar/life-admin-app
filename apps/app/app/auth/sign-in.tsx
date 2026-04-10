@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Redirect, useRouter } from "expo-router";
-import { Modal, Platform, Text, TextInput, View, TouchableOpacity } from "react-native";
+import { Modal, Platform, Text, TextInput, View, TouchableOpacity, ScrollView } from "react-native";
 
 import { Card, colors, spacing, radii } from "@life-admin/ui";
 import { AuthActionButton } from "../../src/components/auth-action-button";
@@ -29,47 +29,44 @@ export default function SignInScreen() {
   const [activeTab, setActiveTab] = useState<AuthTab>("mobile");
   const [authMode, setAuthMode] = useState<AuthMode>("signIn");
 
-  // Mobile Auth State
+  // Auth Input State
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
+  const [password, setPassword] = useState("");
+
+  // Mobile OTP State
   const [otpCode, setOtpCode] = useState("");
   const [otpTarget, setOtpTarget] = useState<string | null>(null);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
-  // Email Auth State
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isProcessingEmail, setIsProcessingEmail] = useState(false);
+  // Loading States
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Profile Completion State
+  // Profile Modal State (for post-mobile-auth or edge cases)
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [userName, setUserName] = useState("");
-  const [userEmail, setUserEmail] = useState("");
-  const [userMobile, setUserMobile] = useState("");
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
-  // Clear messages when tab or mode changes
   useEffect(() => {
     setErrorMessage(null);
     setInfoMessage(null);
   }, [activeTab, authMode]);
 
-  // Check if profile is complete
   const isProfileComplete = profile && profile.displayName && profile.phoneNumber && profile.email;
 
   useEffect(() => {
     if (!isInitializing && session && profile) {
-      if (!isProfileComplete) {
-        setShowProfileModal(true);
-        // Pre-fill what we have
-        setUserName(profile.displayName || "");
-        setUserEmail(profile.email || session.email || "");
-        setUserMobile(profile.phoneNumber || session.phoneNumber || "");
-      } else {
+      if (isProfileComplete) {
         router.replace("/dashboard");
+      } else {
+        // If we have a session but incomplete profile, show modal
+        setShowProfileModal(true);
+        if (!name) setName(profile.displayName || "");
+        if (!email) setEmail(profile.email || session.email || "");
+        if (!mobileNumber) setMobileNumber(profile.phoneNumber || session.phoneNumber || "");
       }
     }
   }, [isInitializing, session, profile, isProfileComplete]);
@@ -137,51 +134,68 @@ export default function SignInScreen() {
   };
 
   const handleEmailAuth = async () => {
+    setErrorMessage(null);
+
     if (!email || !password) {
-      setErrorMessage("Please enter both email and password.");
+      setErrorMessage("Email and Password are required.");
       return;
     }
+
+    if (authMode === "signUp") {
+      if (!name.trim() || !mobileNumber.trim()) {
+        setErrorMessage("All fields are mandatory for sign up.");
+        return;
+      }
+    }
+
     if (password.length < 6) {
       setErrorMessage("Password must be at least 6 characters.");
       return;
     }
 
-    setIsProcessingEmail(true);
-    setErrorMessage(null);
-
+    setIsProcessing(true);
     try {
       if (authMode === "signIn") {
         await signInWithEmail(email, password);
       } else {
         await signUpWithEmail(email, password);
+        // After sign up, the useEffect will trigger the profile modal
+        // because displayName and phoneNumber won't be set in Firebase Auth/Firestore yet.
       }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Authentication failed.");
+      let msg = "Authentication failed.";
+      if (error instanceof Error) {
+        msg = error.message;
+        if (msg.includes("auth/operation-not-allowed")) {
+          msg = "Email/Password sign-in is not enabled in Firebase Console. Please contact the administrator.";
+        }
+      }
+      setErrorMessage(msg);
     } finally {
-      setIsProcessingEmail(false);
+      setIsProcessing(false);
     }
   };
 
   const handleSaveProfile = async () => {
-    if (!userName.trim() || !userEmail.trim() || !userMobile.trim()) {
+    if (!name.trim() || !email.trim() || !mobileNumber.trim()) {
       setErrorMessage("All fields are mandatory.");
       return;
     }
 
-    setIsSavingProfile(true);
+    setIsProcessing(true);
     setErrorMessage(null);
     try {
       await saveUserProfile({
-        displayName: userName.trim(),
-        email: userEmail.trim(),
-        phoneNumber: userMobile.trim()
+        displayName: name.trim(),
+        email: email.trim(),
+        phoneNumber: mobileNumber.trim()
       });
       setShowProfileModal(false);
       router.replace("/dashboard");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Could not save profile.");
     } finally {
-      setIsSavingProfile(false);
+      setIsProcessing(false);
     }
   };
 
@@ -254,6 +268,31 @@ export default function SignInScreen() {
             </View>
           ) : (
             <View style={{ gap: spacing.md }}>
+              {authMode === "signUp" && (
+                <View style={{ gap: spacing.md }}>
+                  <View>
+                    <Text style={labelStyle}>Full Name</Text>
+                    <TextInput
+                      value={name}
+                      onChangeText={setName}
+                      placeholder="John Doe"
+                      placeholderTextColor={colors.slate}
+                      style={inputStyle}
+                    />
+                  </View>
+                  <View>
+                    <Text style={labelStyle}>Mobile Number</Text>
+                    <TextInput
+                      value={mobileNumber}
+                      onChangeText={setMobileNumber}
+                      placeholder="+919876543210"
+                      placeholderTextColor={colors.slate}
+                      keyboardType="phone-pad"
+                      style={inputStyle}
+                    />
+                  </View>
+                </View>
+              )}
               <View>
                 <Text style={labelStyle}>Email Address</Text>
                 <TextInput
@@ -278,8 +317,8 @@ export default function SignInScreen() {
                 />
               </View>
               <AuthActionButton
-                disabled={isProcessingEmail}
-                label={isProcessingEmail ? "Processing..." : (authMode === "signIn" ? "Sign In" : "Create Account")}
+                disabled={isProcessing}
+                label={isProcessing ? "Processing..." : (authMode === "signIn" ? "Sign In" : "Create Account")}
                 onPress={() => void handleEmailAuth()}
                 variant="primary"
               />
@@ -306,7 +345,7 @@ export default function SignInScreen() {
         </View>
       </Card>
 
-      {/* OTP Modal */}
+      {/* OTP Verification Modal */}
       <Modal animationType="slide" transparent visible={Boolean(otpTarget)} onRequestClose={() => setOtpTarget(null)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing.md }}>
           <Card style={{ gap: spacing.md }}>
@@ -329,29 +368,25 @@ export default function SignInScreen() {
                 onPress={() => void verifyCode()}
                 variant="primary"
               />
-              <AuthActionButton
-                label="Cancel"
-                onPress={() => setOtpTarget(null)}
-                variant="ghost"
-              />
+              <AuthActionButton label="Cancel" onPress={() => setOtpTarget(null)} variant="ghost" />
             </View>
           </Card>
         </View>
       </Modal>
 
-      {/* Profile Completion Modal */}
+      {/* Post-Auth Profile Completion Modal */}
       <Modal animationType="fade" transparent visible={showProfileModal}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing.md }}>
           <Card style={{ gap: spacing.md }}>
             <Text style={{ fontSize: 20, fontWeight: "700", color: colors.ink }}>Complete your profile</Text>
             <Text style={{ color: colors.slate }}>All fields are mandatory to continue.</Text>
 
-            <View style={{ gap: spacing.sm }}>
+            <ScrollView contentContainerStyle={{ gap: spacing.sm }} style={{ maxHeight: 300 }}>
               <View>
-                <Text style={labelStyle}>Your Name</Text>
+                <Text style={labelStyle}>Full Name</Text>
                 <TextInput
-                  value={userName}
-                  onChangeText={setUserName}
+                  value={name}
+                  onChangeText={setName}
                   placeholder="John Doe"
                   placeholderTextColor={colors.slate}
                   style={inputStyle}
@@ -360,8 +395,8 @@ export default function SignInScreen() {
               <View>
                 <Text style={labelStyle}>Email Address</Text>
                 <TextInput
-                  value={userEmail}
-                  onChangeText={setUserEmail}
+                  value={email}
+                  onChangeText={setEmail}
                   placeholder="you@example.com"
                   placeholderTextColor={colors.slate}
                   keyboardType="email-address"
@@ -371,19 +406,19 @@ export default function SignInScreen() {
               <View>
                 <Text style={labelStyle}>Mobile Number</Text>
                 <TextInput
-                  value={userMobile}
-                  onChangeText={setUserMobile}
+                  value={mobileNumber}
+                  onChangeText={setMobileNumber}
                   placeholder="+919876543210"
                   placeholderTextColor={colors.slate}
                   keyboardType="phone-pad"
                   style={inputStyle}
                 />
               </View>
-            </View>
+            </ScrollView>
 
             <AuthActionButton
-              disabled={isSavingProfile}
-              label={isSavingProfile ? "Saving..." : "Continue to Dashboard"}
+              disabled={isProcessing}
+              label={isProcessing ? "Saving..." : "Continue to Dashboard"}
               onPress={() => void handleSaveProfile()}
               variant="primary"
             />

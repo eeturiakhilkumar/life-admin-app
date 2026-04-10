@@ -177,7 +177,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         await firebaseSignOut(firebaseAuth);
       }
     }),
-    [isInitializing, user]
+    [isInitializing, user, profile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
