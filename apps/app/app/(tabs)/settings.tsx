@@ -14,11 +14,10 @@ export default function SettingsScreen() {
     useAppStore();
 
   return (
-    <Screen title="Settings" subtitle="Privacy, notification consent, and release readiness live here from day one.">
+    <Screen title="Settings">
       <Section
         eyebrow="Control"
         title="Store-ready app controls"
-        description="These controls map directly to the privacy posture, notifications, and disclosure work needed for Firebase, App Store, and Play Store launches."
       />
       <View style={{ gap: spacing.md }}>
         <Card style={{ gap: spacing.sm }}>
@@ -60,9 +59,16 @@ export default function SettingsScreen() {
           <Text style={{ color: colors.slate }}>
             Signed in as {user?.phoneNumber ?? "a verified mobile user"}.
           </Text>
-          <Pressable onPress={() => void signOut()}>
-            <Text style={{ color: colors.accent, fontWeight: "700" }}>Sign out</Text>
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: spacing.md, marginTop: spacing.xs }}>
+            <Link href="/settings/profile" asChild>
+              <Pressable>
+                <Text style={{ color: colors.accent, fontWeight: "700" }}>Update profile info</Text>
+              </Pressable>
+            </Link>
+            <Pressable onPress={() => void signOut()}>
+              <Text style={{ color: colors.accent, fontWeight: "700" }}>Sign out</Text>
+            </Pressable>
+          </View>
         </Card>
         <Link href="/settings/notifications" asChild>
           <Pressable>

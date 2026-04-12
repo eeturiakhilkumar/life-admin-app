@@ -10,12 +10,10 @@ export default function PrivacySettingsRoute() {
     <RequireAuth>
       <Screen
         title="Privacy controls"
-        subtitle="Server-side AI, explicit confirmation for writes, and clear data boundaries are part of the product contract."
       >
         <Section
           eyebrow="Privacy"
           title="Strong privacy by default"
-          description="Only the minimum necessary document content should leave the client, and sensitive actions always require confirmation."
         />
         <View style={{ gap: spacing.md }}>
           {[

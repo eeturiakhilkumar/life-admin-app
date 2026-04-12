@@ -11,7 +11,7 @@ import { lifeAdminClient } from "../lib/api";
 type ModuleScreenProps = {
   type: ItemType;
   title: string;
-  subtitle: string;
+  subtitle?: string;
 };
 
 export const ModuleScreen = ({ type, title, subtitle }: ModuleScreenProps) => {
@@ -26,7 +26,6 @@ export const ModuleScreen = ({ type, title, subtitle }: ModuleScreenProps) => {
         <Section
           eyebrow="Module"
           title={`${title} workspace`}
-          description="Every module keeps structured records, reminders, document links, and a confirmation-first AI trail."
         />
         <View style={{ gap: spacing.md }}>
           {(data ?? []).map((item) => (

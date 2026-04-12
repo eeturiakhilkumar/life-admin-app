@@ -27,6 +27,8 @@ export type UserProfile = {
   email: string | null;
   phoneNumber: string | null;
   displayName: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
   createdAt?: any;
   updatedAt?: any;
 };
@@ -48,6 +50,8 @@ type AuthContextValue = {
     email?: string;
     phoneNumber?: string;
     password?: string;
+    dateOfBirth?: string;
+    gender?: string;
   }) => Promise<void>;
   resetAuthFlow: () => void;
   signOut: () => Promise<void>;
@@ -149,7 +153,13 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
   const saveUserProfile = async (
     currentUser: User | null,
-    additionalData: { displayName?: string; phoneNumber?: string; email?: string } = {},
+    additionalData: {
+      displayName?: string;
+      phoneNumber?: string;
+      email?: string;
+      dateOfBirth?: string;
+      gender?: string;
+    } = {},
     isNewUser = false
   ) => {
     if (!currentUser) return;
@@ -159,6 +169,8 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       email: additionalData.email || currentUser.email,
       phoneNumber: additionalData.phoneNumber || currentUser.phoneNumber,
       displayName: additionalData.displayName || currentUser.displayName,
+      dateOfBirth: additionalData.dateOfBirth || profile?.dateOfBirth || null,
+      gender: additionalData.gender || profile?.gender || null,
       updatedAt: getServerTimestamp()
     };
 
@@ -280,7 +292,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           await saveUserProfile(nativeAuth().currentUser as unknown as User, { displayName });
         }
       },
-      async completeProfile({ displayName, email, phoneNumber, password }) {
+      async completeProfile({ displayName, email, phoneNumber, password, dateOfBirth, gender }) {
         const currentUser = Platform.OS === "web" ? firebaseAuth?.currentUser : getNativeAuth()?.().currentUser;
         if (!currentUser) throw new Error("No authenticated user found.");
 
@@ -315,7 +327,9 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         await saveUserProfile(updatedUser as User, {
           displayName: displayName || updatedUser?.displayName || undefined,
           // If phoneNumber was passed manually (for email signups), it might not be in updatedUser yet
-          ...(phoneNumber ? { phoneNumber } : {})
+          ...(phoneNumber ? { phoneNumber } : {}),
+          dateOfBirth,
+          gender
         } as any);
 
         // Refresh user state

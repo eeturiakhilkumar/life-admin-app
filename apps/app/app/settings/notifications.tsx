@@ -10,12 +10,10 @@ export default function NotificationSettingsRoute() {
     <RequireAuth>
       <Screen
         title="Notification settings"
-        subtitle="Reminders span bills, appointments, renewals, and important dates, so notification plumbing is a first-class release concern."
       >
         <Section
           eyebrow="Notifications"
           title="Reminder delivery plan"
-          description="Expo notifications cover local permissions today and can extend to push reminders as backend jobs come online."
         />
         <View style={{ gap: spacing.md }}>
           {[

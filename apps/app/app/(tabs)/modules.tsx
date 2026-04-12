@@ -11,11 +11,10 @@ export default function ModulesScreen() {
   const { isTablet, isLaptop } = useResponsiveLayout();
 
   return (
-    <Screen title="Modules" subtitle="Each area uses a shared item model so the dashboard, reminders, search, and AI layer stay consistent.">
+    <Screen title="Modules">
       <Section
         eyebrow="Coverage"
         title="Launch modules"
-        description="V1 covers bills, appointments, renewals, important dates, shopping lists, and documents. Travel tickets can extend the same model later."
       />
       <View
         style={{

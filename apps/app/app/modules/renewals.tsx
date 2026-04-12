@@ -5,7 +5,6 @@ export default function RenewalsRoute() {
     <ModuleScreen
       type="renewal"
       title="Renewals"
-      subtitle="Stay ahead of subscriptions, insurance, IDs, and compliance tasks before they expire."
     />
   );
 }

@@ -19,7 +19,6 @@ export default function DashboardScreen() {
   return (
     <Screen
       title="Life Admin"
-      subtitle="A personal operations dashboard that prioritizes the week ahead instead of hiding work across separate apps."
       rightRail={
         <View style={{ flexDirection: isTablet ? "column" : "row", flexWrap: "wrap", gap: spacing.sm }}>
           {dashboardStats.map((stat) => (
@@ -31,7 +30,6 @@ export default function DashboardScreen() {
       <Section
         eyebrow="Focus"
         title="Upcoming actions"
-        description="A single feed blends bills, appointments, renewals, and documents into the next best actions."
       />
       <View
         style={{

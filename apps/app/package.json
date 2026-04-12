@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@life-admin/ai": "workspace:*",
     "@life-admin/domain": "workspace:*",
     "@life-admin/ui": "workspace:*",

@@ -5,7 +5,6 @@ export default function AppointmentsRoute() {
     <ModuleScreen
       type="appointment"
       title="Appointments"
-      subtitle="Keep visits, prep notes, and follow-up reminders together so nothing slips."
     />
   );
 }
