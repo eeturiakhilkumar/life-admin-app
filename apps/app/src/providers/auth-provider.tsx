@@ -12,23 +12,43 @@ import {
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
   signOut as firebaseSignOut,
-  updateProfile
+  updateProfile,
+  EmailAuthProvider,
+  linkWithCredential,
+  updateEmail
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, onSnapshot } from "firebase/firestore";
 
 import { firebaseAuth, firebaseDb } from "../lib/firebase";
 import { getServerTimestamp, getNativeAuth, getNativeFirestore } from "../lib/firebase-platform";
+
+export type UserProfile = {
+  uid: string;
+  email: string | null;
+  phoneNumber: string | null;
+  displayName: string | null;
+  createdAt?: any;
+  updatedAt?: any;
+};
 
 type AuthContextValue = {
   isConfigured: boolean;
   isInitializing: boolean;
   session: User | null;
   user: User | null;
+  profile: UserProfile | null;
+  isProfileComplete: boolean;
   requestOtp: (phone: string) => Promise<void>;
   verifyOtp: (params: { phone: string; token: string }) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
   updateDisplayName: (displayName: string) => Promise<void>;
+  completeProfile: (data: {
+    displayName: string;
+    email?: string;
+    phoneNumber?: string;
+    password?: string;
+  }) => Promise<void>;
   resetAuthFlow: () => void;
   signOut: () => Promise<void>;
 };
@@ -37,6 +57,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const confirmationResultRef = useRef<ConfirmationResult | null>(null);
   const verifierRef = useRef<RecaptchaVerifier | null>(null);
@@ -73,14 +94,53 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       });
     }
 
+    let unsubscribeProfile: (() => void) | undefined;
+
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
       if (isActive) {
         setUser(nextUser);
+
+        if (unsubscribeProfile) {
+          unsubscribeProfile();
+          unsubscribeProfile = undefined;
+        }
+
+        if (nextUser) {
+          if (Platform.OS === "web") {
+            if (firebaseDb) {
+              unsubscribeProfile = onSnapshot(doc(firebaseDb, "users", nextUser.uid), (snapshot) => {
+                if (snapshot.exists()) {
+                  setProfile(snapshot.data() as UserProfile);
+                } else {
+                  setProfile(null);
+                }
+              });
+            }
+          } else {
+            const nativeFirestore = getNativeFirestore();
+            if (nativeFirestore) {
+              unsubscribeProfile = nativeFirestore()
+                .collection("users")
+                .doc(nextUser.uid)
+                .onSnapshot((snapshot: any) => {
+                  if (snapshot.exists) {
+                    setProfile(snapshot.data() as UserProfile);
+                  } else {
+                    setProfile(null);
+                  }
+                });
+            }
+          }
+        } else {
+          setProfile(null);
+        }
+
         setIsInitializing(false);
       }
     });
 
     return () => {
+      if (unsubscribeProfile) unsubscribeProfile();
       isActive = false;
       unsubscribe();
       resetAuthFlow();
@@ -89,15 +149,15 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
   const saveUserProfile = async (
     currentUser: User | null,
-    additionalData: { displayName?: string } = {},
+    additionalData: { displayName?: string; phoneNumber?: string; email?: string } = {},
     isNewUser = false
   ) => {
     if (!currentUser) return;
 
     const profileData: Record<string, unknown> = {
       uid: currentUser.uid,
-      email: currentUser.email,
-      phoneNumber: currentUser.phoneNumber,
+      email: additionalData.email || currentUser.email,
+      phoneNumber: additionalData.phoneNumber || currentUser.phoneNumber,
       displayName: additionalData.displayName || currentUser.displayName,
       updatedAt: getServerTimestamp()
     };
@@ -117,12 +177,18 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     }
   };
 
+  const isProfileComplete = useMemo(() => {
+    return Boolean(profile?.displayName && profile?.email && profile?.phoneNumber);
+  }, [profile]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       isConfigured: Boolean(firebaseAuth),
       isInitializing,
       session: user,
       user,
+      profile,
+      isProfileComplete,
       async requestOtp(phone) {
         if (Platform.OS === "web") {
           if (!firebaseAuth) {
@@ -214,6 +280,51 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           await saveUserProfile(nativeAuth().currentUser as unknown as User, { displayName });
         }
       },
+      async completeProfile({ displayName, email, phoneNumber, password }) {
+        const currentUser = Platform.OS === "web" ? firebaseAuth?.currentUser : getNativeAuth()?.().currentUser;
+        if (!currentUser) throw new Error("No authenticated user found.");
+
+        // 1. Update Display Name if provided
+        if (displayName) {
+          if (Platform.OS === "web") {
+            await updateProfile(currentUser as User, { displayName });
+          } else {
+            await (currentUser as any).updateProfile({ displayName });
+          }
+        }
+
+        // 2. Handle Email and Password (for mobile signups)
+        if (email && password) {
+          const credential = EmailAuthProvider.credential(email, password);
+          if (Platform.OS === "web") {
+            await linkWithCredential(currentUser as User, credential);
+          } else {
+            await (currentUser as any).linkWithCredential(credential);
+          }
+        } else if (email) {
+          if (Platform.OS === "web") {
+            await updateEmail(currentUser as User, email);
+          } else {
+            await (currentUser as any).updateEmail(email);
+          }
+        }
+
+        // 3. Update Firestore Profile
+        // We use the updated currentUser because it might have new email/phoneNumber after linking
+        const updatedUser = Platform.OS === "web" ? firebaseAuth?.currentUser : getNativeAuth()?.().currentUser;
+        await saveUserProfile(updatedUser as User, {
+          displayName: displayName || updatedUser?.displayName || undefined,
+          // If phoneNumber was passed manually (for email signups), it might not be in updatedUser yet
+          ...(phoneNumber ? { phoneNumber } : {})
+        } as any);
+
+        // Refresh user state
+        if (Platform.OS === "web") {
+          setUser(firebaseAuth?.currentUser ? { ...firebaseAuth.currentUser } : null);
+        } else {
+          setUser(getNativeAuth()?.().currentUser as unknown as User);
+        }
+      },
       resetAuthFlow,
       async signOut() {
         if (Platform.OS === "web") {
@@ -229,7 +340,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         }
       }
     }),
-    [isInitializing, user]
+    [isInitializing, user, profile, isProfileComplete]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
