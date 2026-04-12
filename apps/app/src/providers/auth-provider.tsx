@@ -118,7 +118,10 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
                 } else {
                   setProfile(null);
                 }
+                setIsInitializing(false);
               });
+            } else {
+              setIsInitializing(false);
             }
           } else {
             const nativeFirestore = getNativeFirestore();
@@ -132,14 +135,16 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
                   } else {
                     setProfile(null);
                   }
+                  setIsInitializing(false);
                 });
+            } else {
+              setIsInitializing(false);
             }
           }
         } else {
           setProfile(null);
+          setIsInitializing(false);
         }
-
-        setIsInitializing(false);
       }
     });
 
