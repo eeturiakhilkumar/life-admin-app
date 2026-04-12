@@ -71,9 +71,6 @@ importers:
       expo-constants:
         specifier: ~17.1.6
         version: 17.1.8(expo@53.0.27(@babel/core@7.29.0)(@expo/metro-runtime@5.0.4(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))
-      expo-datetimepicker:
-        specifier: ^1.0.3
-        version: 1.0.3(expo@53.0.27(@babel/core@7.29.0)(@expo/metro-runtime@5.0.4(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       expo-font:
         specifier: ~13.3.1
         version: 13.3.2(expo@53.0.27(@babel/core@7.29.0)(@expo/metro-runtime@5.0.4(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4))(react@19.2.4)
@@ -95,6 +92,9 @@ importers:
       firebase:
         specifier: ^11.1.0
         version: 11.1.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)))
+      prop-types:
+        specifier: ^15.8.1
+        version: 15.8.1
       react:
         specifier: ^19.0.0
         version: 19.2.4
@@ -1328,19 +1328,6 @@ packages:
     peerDependencies:
       react-native: ^0.0.0-0 || >=0.65 <1.0
 
-  '@react-native-community/datetimepicker@8.6.0':
-    resolution: {integrity: sha512-yxPSqNfxgpGaqHQIpatqe6ykeBdU/1pdsk/G3x01mY2bpTflLpmVTLqFSJYd3MiZzxNZcMs/j1dQakUczSjcYA==}
-    peerDependencies:
-      expo: '>=52.0.0'
-      react: '*'
-      react-native: '*'
-      react-native-windows: '*'
-    peerDependenciesMeta:
-      expo:
-        optional: true
-      react-native-windows:
-        optional: true
-
   '@react-native-community/datetimepicker@9.1.0':
     resolution: {integrity: sha512-eadbnk+I2vxvW30iTAsm/qlCnMMAadkifIMYNEB2lzhxN/SvlKc7S2V4k5DyrwjdCbqdcMk3t9K6fnUMcAV34w==}
     peerDependencies:
@@ -2550,9 +2537,6 @@ packages:
       expo: '*'
       react-native: '*'
 
-  expo-datetimepicker@1.0.3:
-    resolution: {integrity: sha512-pBGsRbxAoGYZikfUN/zSY44sqm95MG9IgWkjAbUlh2zsgT9PMTJA4pZ6emwWUWa4rsl5ofl3gAJEULzUxczvEA==}
-
   expo-file-system@18.1.11:
     resolution: {integrity: sha512-HJw/m0nVOKeqeRjPjGdvm+zBi5/NxcdPf8M8P3G2JFvH5Z8vBWqVDic2O58jnT1OFEy0XXzoH9UqFu7cHg9DTQ==}
     peerDependencies:
@@ -3748,6 +3732,9 @@ packages:
     resolution: {integrity: sha512-NxNv/kLguCA7p3jE8oL2aEBsrJWgAakBpgmgK6lpPWV+WuOmY6r2/zbAVnP+T8bQlA0nzHXSJSJW0Hq7ylaD2Q==}
     engines: {node: '>= 6'}
 
+  prop-types@15.8.1:
+    resolution: {integrity: sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==}
+
   proper-lockfile@3.2.0:
     resolution: {integrity: sha512-iMghHHXv2bsxl6NchhEaFck8tvX3F9cknEEh1SUpguUOBjN7PAAW9BLzmbc1g/mCD1gY3EE2EABBHPJfFdHFmA==}
 
@@ -3800,6 +3787,9 @@ packages:
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^16.8.0 || ^17 || ^18 || ^19
+
+  react-is@16.13.1:
+    resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
 
   react-is@18.3.1:
     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
@@ -6180,14 +6170,6 @@ snapshots:
       merge-options: 3.0.4
       react-native: 0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)
 
-  '@react-native-community/datetimepicker@8.6.0(expo@53.0.27(@babel/core@7.29.0)(@expo/metro-runtime@5.0.4(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)':
-    dependencies:
-      invariant: 2.2.4
-      react: 19.2.4
-      react-native: 0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)
-    optionalDependencies:
-      expo: 53.0.27(@babel/core@7.29.0)(@expo/metro-runtime@5.0.4(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
-
   '@react-native-community/datetimepicker@9.1.0(expo@53.0.27(@babel/core@7.29.0)(@expo/metro-runtime@5.0.4(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)':
     dependencies:
       invariant: 2.2.4
@@ -7563,15 +7545,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  expo-datetimepicker@1.0.3(expo@53.0.27(@babel/core@7.29.0)(@expo/metro-runtime@5.0.4(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
-    dependencies:
-      '@react-native-community/datetimepicker': 8.6.0(expo@53.0.27(@babel/core@7.29.0)(@expo/metro-runtime@5.0.4(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
-    transitivePeerDependencies:
-      - expo
-      - react
-      - react-native
-      - react-native-windows
-
   expo-file-system@18.1.11(expo@53.0.27(@babel/core@7.29.0)(@expo/metro-runtime@5.0.4(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)):
     dependencies:
       expo: 53.0.27(@babel/core@7.29.0)(@expo/metro-runtime@5.0.4(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)))(react-native@0.79.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
@@ -8891,6 +8864,12 @@ snapshots:
       kleur: 3.0.3
       sisteransi: 1.0.5
 
+  prop-types@15.8.1:
+    dependencies:
+      loose-envify: 1.4.0
+      object-assign: 4.1.1
+      react-is: 16.13.1
+
   proper-lockfile@3.2.0:
     dependencies:
       graceful-fs: 4.2.11
@@ -8958,6 +8937,8 @@ snapshots:
   react-hook-form@7.72.1(react@19.2.4):
     dependencies:
       react: 19.2.4
+
+  react-is@16.13.1: {}
 
   react-is@18.3.1: {}
 
