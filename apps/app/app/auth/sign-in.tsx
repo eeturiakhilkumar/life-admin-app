@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { Redirect, useRouter } from "expo-router";
-import { Modal, Platform, Text, TextInput, View, TouchableOpacity, ScrollView } from "react-native";
+import { Modal, Platform, Text, TextInput, View, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import RNPickerSelect from "react-native-picker-select";
 
 import { Card, colors, spacing, radii } from "@life-admin/ui";
 import { AuthActionButton } from "../../src/components/auth-action-button";
@@ -35,6 +38,11 @@ export default function SignInScreen() {
   const [mobileNumber, setMobileNumber] = useState("");
   const [password, setPassword] = useState("");
 
+  // Profile Completion Extras
+  const [dob, setDob] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [gender, setGender] = useState("");
+
   // Mobile OTP State
   const [otpCode, setOtpCode] = useState("");
   const [otpTarget, setOtpTarget] = useState<string | null>(null);
@@ -44,7 +52,7 @@ export default function SignInScreen() {
   // Loading States
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Profile Modal State (for post-mobile-auth or edge cases)
+  // Profile Modal State
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -55,18 +63,19 @@ export default function SignInScreen() {
     setInfoMessage(null);
   }, [activeTab, authMode]);
 
-  const isProfileComplete = profile && profile.displayName && profile.phoneNumber && profile.email;
+  const isProfileComplete = profile && profile.displayName && profile.phoneNumber && profile.email && profile.dob && profile.gender;
 
   useEffect(() => {
     if (!isInitializing && session && profile) {
       if (isProfileComplete) {
         router.replace("/dashboard");
       } else {
-        // If we have a session but incomplete profile, show modal
         setShowProfileModal(true);
         if (!name) setName(profile.displayName || "");
         if (!email) setEmail(profile.email || session.email || "");
         if (!mobileNumber) setMobileNumber(profile.phoneNumber || session.phoneNumber || "");
+        if (profile.dob) setDob(new Date(profile.dob));
+        if (profile.gender) setGender(profile.gender);
       }
     }
   }, [isInitializing, session, profile, isProfileComplete]);
@@ -135,19 +144,16 @@ export default function SignInScreen() {
 
   const handleEmailAuth = async () => {
     setErrorMessage(null);
-
     if (!email || !password) {
       setErrorMessage("Email and Password are required.");
       return;
     }
-
     if (authMode === "signUp") {
       if (!name.trim() || !mobileNumber.trim()) {
         setErrorMessage("All fields are mandatory for sign up.");
         return;
       }
     }
-
     if (password.length < 6) {
       setErrorMessage("Password must be at least 6 characters.");
       return;
@@ -159,15 +165,13 @@ export default function SignInScreen() {
         await signInWithEmail(email, password);
       } else {
         await signUpWithEmail(email, password);
-        // After sign up, the useEffect will trigger the profile modal
-        // because displayName and phoneNumber won't be set in Firebase Auth/Firestore yet.
       }
     } catch (error) {
       let msg = "Authentication failed.";
       if (error instanceof Error) {
         msg = error.message;
         if (msg.includes("auth/operation-not-allowed")) {
-          msg = "Email/Password sign-in is not enabled in Firebase Console. Please contact the administrator.";
+          msg = "Email/Password sign-in is not enabled. Please enable it in Firebase Console.";
         }
       }
       setErrorMessage(msg);
@@ -177,7 +181,7 @@ export default function SignInScreen() {
   };
 
   const handleSaveProfile = async () => {
-    if (!name.trim() || !email.trim() || !mobileNumber.trim()) {
+    if (!name.trim() || !email.trim() || !mobileNumber.trim() || !gender) {
       setErrorMessage("All fields are mandatory.");
       return;
     }
@@ -188,7 +192,9 @@ export default function SignInScreen() {
       await saveUserProfile({
         displayName: name.trim(),
         email: email.trim(),
-        phoneNumber: mobileNumber.trim()
+        phoneNumber: mobileNumber.trim(),
+        dob: dob.toISOString().split("T")[0],
+        gender
       });
       setShowProfileModal(false);
       router.replace("/dashboard");
@@ -215,6 +221,13 @@ export default function SignInScreen() {
     marginBottom: spacing.xs,
   };
 
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === "ios");
+    if (selectedDate) {
+      setDob(selectedDate);
+    }
+  };
+
   return (
     <Screen title={authMode === "signIn" ? "Welcome back" : "Create account"}>
       <Card style={{ padding: 0, overflow: "hidden" }}>
@@ -228,10 +241,18 @@ export default function SignInScreen() {
                 flex: 1,
                 paddingVertical: spacing.md,
                 alignItems: "center",
+                flexDirection: "row",
+                justifyContent: "center",
                 borderBottomWidth: activeTab === tab ? 2 : 0,
                 borderBottomColor: colors.accent,
+                gap: spacing.xs
               }}
             >
+              {tab === "mobile" ? (
+                <Ionicons name="phone-portrait-outline" size={18} color={activeTab === tab ? colors.accent : colors.slate} />
+              ) : (
+                <Ionicons name="mail-outline" size={18} color={activeTab === tab ? colors.accent : colors.slate} />
+              )}
               <Text style={{
                 color: activeTab === tab ? colors.accent : colors.slate,
                 fontWeight: "600",
@@ -345,13 +366,11 @@ export default function SignInScreen() {
         </View>
       </Card>
 
-      {/* OTP Verification Modal */}
+      {/* OTP Modal */}
       <Modal animationType="slide" transparent visible={Boolean(otpTarget)} onRequestClose={() => setOtpTarget(null)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing.md }}>
           <Card style={{ gap: spacing.md }}>
             <Text style={{ fontSize: 20, fontWeight: "700", color: colors.ink }}>Verify OTP</Text>
-            <Text style={{ color: colors.slate }}>Enter the 6-digit code sent to {otpTarget}</Text>
-
             <TextInput
               value={otpCode}
               onChangeText={(value) => setOtpCode(sanitizeOtpToken(value))}
@@ -360,7 +379,6 @@ export default function SignInScreen() {
               maxLength={6}
               style={{ ...inputStyle, letterSpacing: 8, textAlign: "center", fontSize: 24 }}
             />
-
             <View style={{ gap: spacing.sm }}>
               <AuthActionButton
                 disabled={isVerifyingOtp}
@@ -374,44 +392,47 @@ export default function SignInScreen() {
         </View>
       </Modal>
 
-      {/* Post-Auth Profile Completion Modal */}
+      {/* Profile Modal */}
       <Modal animationType="fade" transparent visible={showProfileModal}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing.md }}>
           <Card style={{ gap: spacing.md }}>
             <Text style={{ fontSize: 20, fontWeight: "700", color: colors.ink }}>Complete your profile</Text>
-            <Text style={{ color: colors.slate }}>All fields are mandatory to continue.</Text>
-
-            <ScrollView contentContainerStyle={{ gap: spacing.sm }} style={{ maxHeight: 300 }}>
+            <ScrollView contentContainerStyle={{ gap: spacing.md }} style={{ maxHeight: 400 }}>
               <View>
                 <Text style={labelStyle}>Full Name</Text>
-                <TextInput
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="John Doe"
-                  placeholderTextColor={colors.slate}
-                  style={inputStyle}
-                />
+                <TextInput value={name} onChangeText={setName} placeholder="John Doe" style={inputStyle} />
               </View>
               <View>
                 <Text style={labelStyle}>Email Address</Text>
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="you@example.com"
-                  placeholderTextColor={colors.slate}
-                  keyboardType="email-address"
-                  style={inputStyle}
-                />
+                <TextInput value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" style={inputStyle} />
               </View>
               <View>
                 <Text style={labelStyle}>Mobile Number</Text>
-                <TextInput
-                  value={mobileNumber}
-                  onChangeText={setMobileNumber}
-                  placeholder="+919876543210"
-                  placeholderTextColor={colors.slate}
-                  keyboardType="phone-pad"
-                  style={inputStyle}
+                <TextInput value={mobileNumber} onChangeText={setMobileNumber} placeholder="+919876543210" keyboardType="phone-pad" style={inputStyle} />
+              </View>
+              <View>
+                <Text style={labelStyle}>Date of Birth</Text>
+                <TouchableOpacity onPress={() => setShowDatePicker(true)} style={inputStyle}>
+                  <Text style={{ color: dob ? colors.ink : colors.slate }}>
+                    {dob.toISOString().split("T")[0]}
+                  </Text>
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker value={dob} mode="date" display="default" onChange={onDateChange} maximumDate={new Date()} />
+                )}
+              </View>
+              <View>
+                <Text style={labelStyle}>Gender</Text>
+                <RNPickerSelect
+                  onValueChange={(value) => setGender(value)}
+                  value={gender}
+                  items={[
+                    { label: "Male", value: "male" },
+                    { label: "Female", value: "female" },
+                    { label: "Others", value: "others" },
+                  ]}
+                  style={pickerSelectStyles}
+                  placeholder={{ label: "Select gender...", value: null }}
                 />
               </View>
             </ScrollView>
@@ -422,7 +443,6 @@ export default function SignInScreen() {
               onPress={() => void handleSaveProfile()}
               variant="primary"
             />
-
             {errorMessage && <Text style={{ color: colors.accent, textAlign: "center" }}>{errorMessage}</Text>}
           </Card>
         </View>
@@ -430,3 +450,28 @@ export default function SignInScreen() {
     </Screen>
   );
 }
+
+const pickerSelectStyles = StyleSheet.create({
+  inputIOS: {
+    fontSize: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: colors.mist,
+    borderRadius: radii.md,
+    color: colors.ink,
+    paddingRight: 30,
+    backgroundColor: "#ffffff",
+  },
+  inputAndroid: {
+    fontSize: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.mist,
+    borderRadius: radii.md,
+    color: colors.ink,
+    paddingRight: 30,
+    backgroundColor: "#ffffff",
+  },
+});

@@ -23,12 +23,24 @@ type AuthContextValue = {
   isInitializing: boolean;
   session: User | null;
   user: User | null;
-  profile: { displayName?: string; phoneNumber?: string; email?: string } | null;
+  profile: {
+    displayName?: string;
+    phoneNumber?: string;
+    email?: string;
+    dob?: string;
+    gender?: string;
+  } | null;
   requestOtp: (phone: string) => Promise<void>;
   verifyOtp: (params: { phone: string; token: string }) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
-  saveUserProfile: (data: { displayName: string; phoneNumber: string; email: string }) => Promise<void>;
+  saveUserProfile: (data: {
+    displayName: string;
+    phoneNumber: string;
+    email: string;
+    dob?: string;
+    gender?: string;
+  }) => Promise<void>;
   resetAuthFlow: () => void;
   signOut: () => Promise<void>;
 };
