@@ -222,7 +222,9 @@ export default function SignInScreen() {
   };
 
   const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(Platform.OS === "ios");
+    if (Platform.OS !== "web") {
+      setShowDatePicker(Platform.OS === "ios");
+    }
     if (selectedDate) {
       setDob(selectedDate);
     }
@@ -412,28 +414,49 @@ export default function SignInScreen() {
               </View>
               <View>
                 <Text style={labelStyle}>Date of Birth</Text>
-                <TouchableOpacity onPress={() => setShowDatePicker(true)} style={inputStyle}>
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker(true)}
+                  style={{ ...inputStyle, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+                >
                   <Text style={{ color: dob ? colors.ink : colors.slate }}>
-                    {dob.toISOString().split("T")[0]}
+                    {dob.toLocaleDateString()}
                   </Text>
+                  <Ionicons name="calendar-outline" size={20} color={colors.slate} />
                 </TouchableOpacity>
                 {showDatePicker && (
-                  <DateTimePicker value={dob} mode="date" display="default" onChange={onDateChange} maximumDate={new Date()} />
+                  <DateTimePicker
+                    value={dob}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
+                    onChange={onDateChange}
+                    maximumDate={new Date()}
+                  />
+                )}
+                {Platform.OS === "web" && showDatePicker && (
+                  <TouchableOpacity
+                    onPress={() => setShowDatePicker(false)}
+                    style={{ marginTop: spacing.xs, alignSelf: "flex-end" }}
+                  >
+                    <Text style={{ color: colors.accent, fontWeight: "600" }}>Done</Text>
+                  </TouchableOpacity>
                 )}
               </View>
               <View>
                 <Text style={labelStyle}>Gender</Text>
-                <RNPickerSelect
-                  onValueChange={(value) => setGender(value)}
-                  value={gender}
-                  items={[
-                    { label: "Male", value: "male" },
-                    { label: "Female", value: "female" },
-                    { label: "Others", value: "others" },
-                  ]}
-                  style={pickerSelectStyles}
-                  placeholder={{ label: "Select gender...", value: null }}
-                />
+                <View style={{ position: "relative" }}>
+                  <RNPickerSelect
+                    onValueChange={(value) => setGender(value)}
+                    value={gender}
+                    items={[
+                      { label: "Male", value: "male" },
+                      { label: "Female", value: "female" },
+                      { label: "Others", value: "others" },
+                    ]}
+                    style={pickerSelectStyles}
+                    placeholder={{ label: "Select gender...", value: null }}
+                    Icon={() => <Ionicons name="chevron-down" size={20} color={colors.slate} />}
+                  />
+                </View>
               </View>
             </ScrollView>
 
@@ -473,5 +496,22 @@ const pickerSelectStyles = StyleSheet.create({
     color: colors.ink,
     paddingRight: 30,
     backgroundColor: "#ffffff",
+  },
+  inputWeb: {
+    fontSize: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: colors.mist,
+    borderRadius: radii.md,
+    color: colors.ink,
+    paddingRight: 30,
+    backgroundColor: "#ffffff",
+    cursor: "pointer",
+    outlineWidth: 0,
+  },
+  iconContainer: {
+    top: 12,
+    right: 12,
   },
 });

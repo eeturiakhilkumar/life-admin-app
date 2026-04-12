@@ -6,7 +6,7 @@ import { colors, spacing } from "@life-admin/ui";
 import { useAuth } from "../providers/auth-provider";
 
 export const RequireAuth = ({ children }: PropsWithChildren): ReactElement => {
-  const { isInitializing, session } = useAuth();
+  const { isInitializing, session, profile } = useAuth();
 
   if (isInitializing) {
     return (
@@ -26,9 +26,9 @@ export const RequireAuth = ({ children }: PropsWithChildren): ReactElement => {
     );
   }
 
-  if (!session) {
+  if (!session || !profile) {
     return <Redirect href="/auth/sign-in" />;
   }
 
-  return <>{children}</>;
+  return <View style={{ flex: 1 }}>{children}</View>;
 };
