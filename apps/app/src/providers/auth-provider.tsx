@@ -1,6 +1,8 @@
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Platform } from "react-native";
+import { Platform, AppState } from "react-native";
+import type { AppStateStatus } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ConfirmationResult, User } from "firebase/auth";
 import {
   RecaptchaVerifier,
@@ -59,6 +61,9 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
+const LAST_ACTIVITY_KEY = "last_activity_timestamp";
+
 export const AuthProvider = ({ children }: PropsWithChildren) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -82,6 +87,49 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     }
   };
 
+  const updateLastActivity = async () => {
+    if (!user) return;
+    const timestamp = Date.now().toString();
+    try {
+      await AsyncStorage.setItem(LAST_ACTIVITY_KEY, timestamp);
+    } catch (error) {
+      console.error("Failed to save last activity timestamp", error);
+    }
+  };
+
+  const checkSessionTimeout = async (currentUser: User | null = user) => {
+    try {
+      const lastActivity = await AsyncStorage.getItem(LAST_ACTIVITY_KEY);
+      if (lastActivity && currentUser) {
+        const lastTimestamp = parseInt(lastActivity, 10);
+        const now = Date.now();
+        if (now - lastTimestamp > SESSION_TIMEOUT_MS) {
+          await firebaseSignOutAction();
+          return true;
+        }
+      }
+      await updateLastActivity();
+      return false;
+    } catch (error) {
+      console.error("Failed to check session timeout", error);
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState: AppStateStatus) => {
+      if (nextAppState === "active") {
+        void checkSessionTimeout();
+      } else {
+        void updateLastActivity();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [user]);
+
   useEffect(() => {
     let isActive = true;
 
@@ -102,6 +150,9 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
       if (isActive) {
+        if (nextUser) {
+          void checkSessionTimeout(nextUser);
+        }
         setUser(nextUser);
 
         if (unsubscribeProfile) {
@@ -346,21 +397,29 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       },
       resetAuthFlow,
       async signOut() {
-        if (Platform.OS === "web") {
-          if (!firebaseAuth) {
-            return;
-          }
-          await firebaseSignOut(firebaseAuth);
-        } else {
-          const nativeAuth = getNativeAuth();
-          if (nativeAuth) {
-            await nativeAuth().signOut();
-          }
-        }
+        await firebaseSignOutAction();
       }
     }),
     [isInitializing, user, profile, isProfileComplete]
   );
+
+  const firebaseSignOutAction = async () => {
+    try {
+      await AsyncStorage.removeItem(LAST_ACTIVITY_KEY);
+    } catch (e) {}
+
+    if (Platform.OS === "web") {
+      if (!firebaseAuth) {
+        return;
+      }
+      await firebaseSignOut(firebaseAuth);
+    } else {
+      const nativeAuth = getNativeAuth();
+      if (nativeAuth) {
+        await nativeAuth().signOut();
+      }
+    }
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

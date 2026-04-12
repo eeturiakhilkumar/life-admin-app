@@ -44,6 +44,7 @@ export default function SignInScreen() {
   const [isProcessingEmail, setIsProcessingEmail] = useState(false);
 
   // Profile Completion State
+  const [hasActivelyAuthenticated, setHasActivelyAuthenticated] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [userName, setUserName] = useState("");
   const [extraEmail, setExtraEmail] = useState("");
@@ -62,14 +63,22 @@ export default function SignInScreen() {
 
   // Handle profile completion modal trigger
   useEffect(() => {
-    if (!isInitializing && session && !isProfileComplete) {
+    if (!isInitializing && session && !isProfileComplete && hasActivelyAuthenticated) {
       setShowProfileModal(true);
+
       // Pre-fill if we have some data
-      if (profile?.displayName) setUserName(profile.displayName);
+      const existingName = profile?.displayName || session?.displayName || "";
+      if (existingName) setUserName(existingName);
+
+      const existingEmail = profile?.email || session?.email || "";
+      if (existingEmail) setExtraEmail(existingEmail);
+
+      const existingMobile = profile?.phoneNumber || session?.phoneNumber || "";
+      if (existingMobile) setExtraMobile(existingMobile);
     } else if (!isInitializing && (isProfileComplete || !session)) {
       setShowProfileModal(false);
     }
-  }, [isInitializing, session, isProfileComplete, profile]);
+  }, [isInitializing, session, isProfileComplete, profile, hasActivelyAuthenticated]);
 
   if (!isInitializing && session && isProfileComplete && !showProfileModal) {
     return <Redirect href="/dashboard" />;
@@ -128,6 +137,7 @@ export default function SignInScreen() {
       });
       // Clear OTP target on success to close modal
       setOtpTarget(null);
+      setHasActivelyAuthenticated(true);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Could not verify OTP.");
     } finally {
@@ -154,6 +164,7 @@ export default function SignInScreen() {
       } else {
         await signUpWithEmail(email, password);
       }
+      setHasActivelyAuthenticated(true);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Authentication failed.");
     } finally {
@@ -400,7 +411,7 @@ export default function SignInScreen() {
 
             <View style={{ gap: spacing.md }}>
               <View>
-                <Text style={labelStyle}>Username</Text>
+                <Text style={labelStyle}>Username <Text style={{ color: colors.accent }}>*</Text></Text>
                 <TextInput
                   value={userName}
                   onChangeText={setUserName}
@@ -413,7 +424,7 @@ export default function SignInScreen() {
               {(!profile?.email && !session?.email) && (
                 <>
                   <View>
-                    <Text style={labelStyle}>Email Address</Text>
+                    <Text style={labelStyle}>Email Address <Text style={{ color: colors.accent }}>*</Text></Text>
                     <TextInput
                       value={extraEmail}
                       onChangeText={setExtraEmail}
@@ -425,7 +436,7 @@ export default function SignInScreen() {
                     />
                   </View>
                   <View>
-                    <Text style={labelStyle}>Password</Text>
+                    <Text style={labelStyle}>Password <Text style={{ color: colors.accent }}>*</Text></Text>
                     <TextInput
                       value={extraPassword}
                       onChangeText={setExtraPassword}
@@ -440,7 +451,7 @@ export default function SignInScreen() {
 
               {(!profile?.phoneNumber && !session?.phoneNumber) && (
                 <View>
-                  <Text style={labelStyle}>Mobile Number</Text>
+                  <Text style={labelStyle}>Mobile Number <Text style={{ color: colors.accent }}>*</Text></Text>
                   <TextInput
                     value={extraMobile}
                     onChangeText={setExtraMobile}
