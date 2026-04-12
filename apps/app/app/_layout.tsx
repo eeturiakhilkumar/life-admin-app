@@ -14,9 +14,15 @@ export default function RootLayout() {
   const [loaded, error] = useFonts({
     ...Ionicons.font,
     ...MaterialCommunityIcons.font,
+    // Explicitly include font names that might be used by the web platform
+    Ionicons: require("@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf"),
+    MaterialCommunityIcons: require("@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf"),
   });
 
   useEffect(() => {
+    if (error) {
+      console.error("Error loading fonts:", error);
+    }
     if (loaded || error) {
       void SplashScreen.hideAsync();
     }
