@@ -13,7 +13,6 @@ export default function OnboardingScreen() {
     <RequireAuth>
       <Screen
         title="Your life, one calm operating system"
-        subtitle="Life Admin unifies bills, renewals, appointments, important dates, shopping lists, and documents into one workflow-focused home."
         rightRail={
           <View style={{ flexDirection: isTablet ? "column" : "row", flexWrap: "wrap", gap: spacing.sm }}>
             <StatChip label="Platforms" value="Web + iOS + Android" />
@@ -25,7 +24,6 @@ export default function OnboardingScreen() {
           <Section
             eyebrow="What changes"
             title="Less hunting across apps"
-            description="Capture something once, connect it to reminders and documents, then let AI suggest next steps while you stay in control."
           />
           <View style={{ flexDirection: isTablet ? "row" : "column", flexWrap: "wrap", gap: spacing.sm }}>
             {[

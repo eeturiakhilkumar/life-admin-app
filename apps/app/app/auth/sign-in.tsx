@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Redirect } from "expo-router";
 import { Modal, Platform, Text, TextInput, View, TouchableOpacity } from "react-native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { Card, colors, spacing, radii } from "@life-admin/ui";
 import { AuthActionButton } from "../../src/components/auth-action-button";
@@ -238,27 +239,39 @@ export default function SignInScreen() {
       <Card style={{ padding: 0, overflow: "hidden" }}>
         {/* Tabs */}
         <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.mist }}>
-          {(["mobile", "email"] as AuthTab[]).map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              style={{
-                flex: 1,
-                paddingVertical: spacing.md,
-                alignItems: "center",
-                borderBottomWidth: activeTab === tab ? 2 : 0,
-                borderBottomColor: colors.accent,
-              }}
-            >
-              <Text style={{
-                color: activeTab === tab ? colors.accent : colors.slate,
-                fontWeight: "600",
-                textTransform: "capitalize"
-              }}>
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {(["mobile", "email"] as AuthTab[]).map((tab) => {
+            const isActive = activeTab === tab;
+            const iconColor = isActive ? colors.accent : colors.slate;
+            return (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => setActiveTab(tab)}
+                style={{
+                  flex: 1,
+                  paddingVertical: spacing.md,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexDirection: "row",
+                  gap: spacing.xs,
+                  borderBottomWidth: isActive ? 2 : 0,
+                  borderBottomColor: colors.accent,
+                }}
+              >
+                {tab === "mobile" ? (
+                  <Ionicons name={isActive ? "phone-portrait" : "phone-portrait-outline"} size={20} color={iconColor} />
+                ) : (
+                  <MaterialCommunityIcons name={isActive ? "email" : "email-outline"} size={20} color={iconColor} />
+                )}
+                <Text style={{
+                  color: iconColor,
+                  fontWeight: "600",
+                  textTransform: "capitalize"
+                }}>
+                  {tab}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <View style={{ padding: spacing.lg, gap: spacing.lg }}>

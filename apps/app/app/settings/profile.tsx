@@ -1,0 +1,161 @@
+import { useRouter } from "expo-router";
+import { useForm, Controller } from "react-hook-form";
+import { Pressable, Text, TextInput, View, StyleSheet, ScrollView } from "react-native";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
+import { Card, colors, Section, spacing } from "@life-admin/ui";
+
+import { RequireAuth } from "../../src/components/require-auth";
+import { Screen } from "../../src/components/screen";
+import { useAuth } from "../../src/providers/auth-provider";
+
+const profileSchema = z.object({
+  displayName: z.string().min(4, "Username must be at least 4 characters").max(20, "Username must be at most 20 characters"),
+  dateOfBirth: z.string().optional(),
+  gender: z.string().optional()
+});
+
+type ProfileFormValues = z.infer<typeof profileSchema>;
+
+export default function ProfileUpdateScreen() {
+  const { profile, completeProfile } = useAuth();
+  const router = useRouter();
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting }
+  } = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      displayName: profile?.displayName || "",
+      dateOfBirth: profile?.dateOfBirth || "",
+      gender: profile?.gender || ""
+    }
+  });
+
+  const onSubmit = async (data: ProfileFormValues) => {
+    try {
+      await completeProfile({
+        displayName: data.displayName,
+        dateOfBirth: data.dateOfBirth,
+        gender: data.gender
+      });
+      router.back();
+    } catch (error) {
+      console.error("Failed to update profile", error);
+    }
+  };
+
+  return (
+    <RequireAuth>
+      <Screen title="Update Profile">
+        <Section eyebrow="Account" title="Personal Information" />
+        <Card style={{ gap: spacing.md }}>
+          <View style={styles.field}>
+            <Text style={styles.label}>Display Name</Text>
+            <Controller
+              control={control}
+              name="displayName"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput
+                  style={[styles.input, errors.displayName && styles.inputError]}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                  placeholder="Your Name"
+                />
+              )}
+            />
+            {errors.displayName && <Text style={styles.errorText}>{errors.displayName.message}</Text>}
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Date of Birth</Text>
+            <Controller
+              control={control}
+              name="dateOfBirth"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput
+                  style={styles.input}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                  placeholder="YYYY-MM-DD"
+                />
+              )}
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Gender</Text>
+            <Controller
+              control={control}
+              name="gender"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput
+                  style={styles.input}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                  placeholder="e.g. Male, Female, Other"
+                />
+              )}
+            />
+          </View>
+
+          <Pressable
+            onPress={handleSubmit(onSubmit)}
+            disabled={isSubmitting}
+            style={({ pressed }) => [
+              styles.button,
+              { backgroundColor: pressed ? colors.accent + "CC" : colors.accent },
+              isSubmitting && { opacity: 0.5 }
+            ]}
+          >
+            <Text style={styles.buttonText}>{isSubmitting ? "Updating..." : "Save Changes"}</Text>
+          </Pressable>
+        </Card>
+      </Screen>
+    </RequireAuth>
+  );
+}
+
+const styles = StyleSheet.create({
+  field: {
+    gap: spacing.xs
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.slate
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.mist,
+    borderRadius: 12,
+    padding: spacing.md,
+    backgroundColor: "#ffffff",
+    fontSize: 16,
+    color: colors.ink
+  },
+  inputError: {
+    borderColor: "red"
+  },
+  errorText: {
+    color: "red",
+    fontSize: 12
+  },
+  button: {
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    borderRadius: 999,
+    alignItems: "center"
+  },
+  buttonText: {
+    color: "#ffffff",
+    fontWeight: "800",
+    fontSize: 16
+  }
+});

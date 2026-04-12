@@ -5,7 +5,6 @@ export default function DocumentsRoute() {
     <ModuleScreen
       type="document"
       title="Documents"
-      subtitle="Store and link receipts, policies, IDs, and important files with AI summaries and metadata."
     />
   );
 }

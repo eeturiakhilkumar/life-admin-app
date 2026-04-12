@@ -16,11 +16,10 @@ export default function SearchScreen() {
   });
 
   return (
-    <Screen title="Search" subtitle="Search is designed around tasks and supporting documents, not around isolated modules.">
+    <Screen title="Search">
       <Section
         eyebrow="Cross-module"
         title="One search across your life admin surface"
-        description="The same shared contracts power dashboard ranking, document links, and future AI-assisted retrieval."
       />
       <Card style={{ gap: spacing.md }}>
         <TextInput

@@ -6,7 +6,9 @@ Life Admin is a cross-platform personal operations dashboard built with `Expo`, 
 - iOS
 - Android
 
-The web app is deployed to Firebase Hosting. Mobile builds are prepared with Expo EAS for App Store and Play Store release flows.
+The web app is deployed to Firebase Hosting: [https://life-admin-app-16bd7.web.app](https://life-admin-app-16bd7.web.app)
+
+Mobile builds are prepared with Expo EAS for App Store and Play Store release flows.
 
 ## Repo Structure
 

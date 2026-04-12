@@ -13,6 +13,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@expo/vector-icons": "^14.1.0",
+    "@hookform/resolvers": "^5.2.2",
     "@life-admin/ai": "workspace:*",
     "@life-admin/domain": "workspace:*",
     "@life-admin/ui": "workspace:*",
@@ -29,6 +31,7 @@
     "expo-notifications": "~0.31.4",
     "expo-router": "~5.0.4",
     "expo-secure-store": "~14.2.3",
+    "expo-splash-screen": "^55.0.17",
     "expo-status-bar": "~2.2.3",
     "firebase": "^12.11.0",
     "react": "^19.0.0",

@@ -5,7 +5,6 @@ export default function BillsRoute() {
     <ModuleScreen
       type="bill"
       title="Bills"
-      subtitle="Track due dates, amounts, payment proofs, and reminders in one clean workflow."
     />
   );
 }
