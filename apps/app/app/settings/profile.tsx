@@ -7,6 +7,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import RNPickerSelect from "react-native-picker-select";
 import { useState } from "react";
 import { Calendar } from "react-native-calendars";
+import { Ionicons } from "@expo/vector-icons";
 
 import { Card, colors, Section, spacing } from "@life-admin/ui";
 
@@ -111,10 +112,25 @@ export default function ProfileUpdateScreen() {
                                   }
                                 : {}
                             }
+                            renderArrow={(direction: string) => (
+                              <Ionicons name={direction === "left" ? "chevron-back" : "chevron-forward"} size={24} color={colors.accent} />
+                            )}
                             theme={{
-                              todayTextColor: colors.accent,
+                              calendarBackground: "#ffffff",
+                              textSectionTitleColor: colors.slate,
                               selectedDayBackgroundColor: colors.accent,
-                              arrowColor: colors.accent
+                              selectedDayTextColor: "#ffffff",
+                              todayTextColor: colors.accent,
+                              dayTextColor: colors.ink,
+                              textDisabledColor: colors.mist,
+                              dotColor: colors.accent,
+                              selectedDotColor: "#ffffff",
+                              arrowColor: colors.accent,
+                              monthTextColor: colors.ink,
+                              textMonthFontWeight: "bold",
+                              textDayFontSize: 16,
+                              textMonthFontSize: 18,
+                              textDayHeaderFontSize: 14
                             }}
                           />
                         </View>
@@ -234,7 +250,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5
+    elevation: 5,
+    width: 350
   },
   inputError: {
     borderColor: "red"
