@@ -1,11 +1,12 @@
 import { useRouter } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
-import { Pressable, Text, TextInput, View, StyleSheet, Platform, TouchableOpacity } from "react-native";
+import { Pressable, Text, TextInput, View, StyleSheet, Platform, TouchableOpacity, Modal } from "react-native";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import RNPickerSelect from "react-native-picker-select";
 import { useState } from "react";
+import { Calendar } from "react-native-calendars";
 
 import { Card, colors, Section, spacing } from "@life-admin/ui";
 
@@ -89,38 +90,50 @@ export default function ProfileUpdateScreen() {
               name="dateOfBirth"
               render={({ field: { onChange, value } }) => (
                 <View>
+                  <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
+                    <Text style={{ color: value ? colors.ink : colors.slate + "80" }}>{value || "YYYY-MM-DD"}</Text>
+                  </TouchableOpacity>
+
                   {Platform.OS === "web" ? (
-                    <TextInput
-                      style={styles.input}
-                      value={value}
-                      onChangeText={onChange}
-                      // @ts-ignore - type="date" is supported on web via react-native-web
-                      type="date"
-                    />
-                  ) : (
-                    <>
-                      <TouchableOpacity
-                        onPress={() => setShowDatePicker(true)}
-                        style={styles.input}
-                      >
-                        <Text style={{ color: value ? colors.ink : colors.slate + "80" }}>
-                          {value || "YYYY-MM-DD"}
-                        </Text>
-                      </TouchableOpacity>
-                      {showDatePicker && (
-                        <DateTimePicker
-                          value={value ? new Date(value) : new Date()}
-                          mode="date"
-                          display="default"
-                          onChange={(_, selectedDate) => {
-                            setShowDatePicker(false);
-                            if (selectedDate) {
-                              onChange(formatDate(selectedDate));
+                    <Modal visible={showDatePicker} transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
+                      <Pressable style={styles.modalOverlay} onPress={() => setShowDatePicker(false)}>
+                        <View style={styles.calendarModal}>
+                          <Calendar
+                            current={value || undefined}
+                            onDayPress={(day: any) => {
+                              onChange(day.dateString);
+                              setShowDatePicker(false);
+                            }}
+                            markedDates={
+                              value
+                                ? {
+                                    [value]: { selected: true, selectedColor: colors.accent }
+                                  }
+                                : {}
                             }
-                          }}
-                        />
-                      )}
-                    </>
+                            theme={{
+                              todayTextColor: colors.accent,
+                              selectedDayBackgroundColor: colors.accent,
+                              arrowColor: colors.accent
+                            }}
+                          />
+                        </View>
+                      </Pressable>
+                    </Modal>
+                  ) : (
+                    showDatePicker && (
+                      <DateTimePicker
+                        value={value ? new Date(value) : new Date()}
+                        mode="date"
+                        display="default"
+                        onChange={(_, selectedDate) => {
+                          setShowDatePicker(false);
+                          if (selectedDate) {
+                            onChange(formatDate(selectedDate));
+                          }
+                        }}
+                      />
+                    )
                   )}
                 </View>
               )}
@@ -206,6 +219,22 @@ const styles = StyleSheet.create({
     width: "100%",
     backgroundColor: "transparent",
     minHeight: 50
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  calendarModal: {
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    padding: spacing.md,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5
   },
   inputError: {
     borderColor: "red"
