@@ -1,8 +1,13 @@
 import { useRouter } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
-import { Pressable, Text, TextInput, View, StyleSheet, ScrollView } from "react-native";
+import { Pressable, Text, TextInput, View, StyleSheet, Platform, TouchableOpacity, Modal } from "react-native";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import RNPickerSelect from "react-native-picker-select";
+import { useState } from "react";
+import { Calendar } from "react-native-calendars";
+import { Ionicons } from "@expo/vector-icons";
 
 import { Card, colors, Section, spacing } from "@life-admin/ui";
 
@@ -21,6 +26,7 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 export default function ProfileUpdateScreen() {
   const { profile, completeProfile } = useAuth();
   const router = useRouter();
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const {
     control,
@@ -46,6 +52,13 @@ export default function ProfileUpdateScreen() {
     } catch (error) {
       console.error("Failed to update profile", error);
     }
+  };
+
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
 
   return (
@@ -76,14 +89,69 @@ export default function ProfileUpdateScreen() {
             <Controller
               control={control}
               name="dateOfBirth"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput
-                  style={styles.input}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                  placeholder="YYYY-MM-DD"
-                />
+              render={({ field: { onChange, value } }) => (
+                <View>
+                  <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
+                    <Text style={{ color: value ? colors.ink : colors.slate + "80" }}>{value || "YYYY-MM-DD"}</Text>
+                  </TouchableOpacity>
+
+                  {Platform.OS === "web" ? (
+                    <Modal visible={showDatePicker} transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
+                      <Pressable style={styles.modalOverlay} onPress={() => setShowDatePicker(false)}>
+                        <View style={styles.calendarModal}>
+                          <Calendar
+                            current={value || undefined}
+                            onDayPress={(day: any) => {
+                              onChange(day.dateString);
+                              setShowDatePicker(false);
+                            }}
+                            markedDates={
+                              value
+                                ? {
+                                    [value]: { selected: true, selectedColor: colors.accent }
+                                  }
+                                : {}
+                            }
+                            renderArrow={(direction: string) => (
+                              <Ionicons name={direction === "left" ? "chevron-back" : "chevron-forward"} size={24} color={colors.accent} />
+                            )}
+                            theme={{
+                              calendarBackground: "#ffffff",
+                              textSectionTitleColor: colors.slate,
+                              selectedDayBackgroundColor: colors.accent,
+                              selectedDayTextColor: "#ffffff",
+                              todayTextColor: colors.accent,
+                              dayTextColor: colors.ink,
+                              textDisabledColor: colors.mist,
+                              dotColor: colors.accent,
+                              selectedDotColor: "#ffffff",
+                              arrowColor: colors.accent,
+                              monthTextColor: colors.ink,
+                              textMonthFontWeight: "bold",
+                              textDayFontSize: 16,
+                              textMonthFontSize: 18,
+                              textDayHeaderFontSize: 14
+                            }}
+                          />
+                        </View>
+                      </Pressable>
+                    </Modal>
+                  ) : (
+                    showDatePicker && (
+                      <DateTimePicker
+                        value={value ? new Date(value) : new Date()}
+                        mode="date"
+                        display="default"
+                        onChange={(_, selectedDate) => {
+                          setShowDatePicker(false);
+                          if (selectedDate) {
+                            onChange(formatDate(selectedDate));
+                          }
+                        }}
+                      />
+                    )
+                  )}
+                </View>
               )}
             />
           </View>
@@ -93,14 +161,25 @@ export default function ProfileUpdateScreen() {
             <Controller
               control={control}
               name="gender"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput
-                  style={styles.input}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                  placeholder="e.g. Male, Female, Other"
-                />
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.pickerContainer}>
+                  <RNPickerSelect
+                    onValueChange={onChange}
+                    value={value}
+                    items={[
+                      { label: "Male", value: "male" },
+                      { label: "Female", value: "female" },
+                      { label: "Others", value: "others" }
+                    ]}
+                    placeholder={{ label: "Select Gender", value: null }}
+                    style={{
+                      inputIOS: styles.pickerInput,
+                      inputAndroid: styles.pickerInput,
+                      inputWeb: styles.pickerInput,
+                      placeholder: { color: colors.slate + "80" }
+                    }}
+                  />
+                </View>
               )}
             />
           </View>
@@ -138,7 +217,41 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     backgroundColor: "#ffffff",
     fontSize: 16,
-    color: colors.ink
+    color: colors.ink,
+    minHeight: 50,
+    justifyContent: "center"
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: colors.mist,
+    borderRadius: 12,
+    backgroundColor: "#ffffff",
+    overflow: "hidden"
+  },
+  pickerInput: {
+    padding: spacing.md,
+    fontSize: 16,
+    color: colors.ink,
+    width: "100%",
+    backgroundColor: "transparent",
+    minHeight: 50
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  calendarModal: {
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    padding: spacing.md,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    width: 350
   },
   inputError: {
     borderColor: "red"
